@@ -14,6 +14,6 @@ clean:
 	rm ./bin/*
 
 
-deply_server: server
+deploy: server
 	cp ./bin/server ~/bin/myserver
 	
