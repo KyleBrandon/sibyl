@@ -8,7 +8,7 @@ client:
 	@go build -o ./bin/client ./cmd/client/main.go
 
 server:
-	@go build -o ./bin/server ./cmd/server/main.go
+	@go build -o ./bin/note-server ./cmd/note_server/main.go
 
 clean:
 	rm ./bin/*
