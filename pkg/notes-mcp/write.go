@@ -6,36 +6,47 @@ import (
 	"path/filepath"
 
 	"github.com/KyleBrandon/sibyl/pkg/utils"
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func (ns *NotesServer) NewWriteNoteTool() mcp.Tool {
-	return mcp.NewTool("write_note",
-		mcp.WithDescription("Write the contents to the note"),
-		mcp.WithString("path",
-			mcp.Required(),
-			mcp.Description("Path to the note file to write the contents to"),
-		),
-		mcp.WithString("content",
-			mcp.Required(),
-			mcp.Description("Text content to write to the note file"),
+type WriteNoteRequest struct {
+	Path    string `json:"path,omitempty" mcp:"Path to the note file to write the contents to"`
+	Content string `json:"content,omitempty" mcp:"Text content to write to the note file"`
+}
+
+type AppendNoteRequest struct {
+	Path    string `json:"path,omitempty" mcp:"Path to the note file to append the contents to"`
+	Content string `json:"content,omitempty" mcp:"Text content to append to the end of the note file"`
+}
+
+type CreateFolderRequest struct {
+	Path string `json:"path,omitempty" mcp:"Path to the note file to append the contents to"`
+}
+
+func (ns *NotesServer) NewWriteNoteTool() *mcp.ServerTool {
+	return mcp.NewServerTool(
+		"write_note",
+		"Write the contents to the note",
+		ns.WriteNote,
+		mcp.Input(
+			mcp.Property("path",
+				mcp.Required(true),
+				mcp.Description("Path to the note file to write the contents to"),
+			),
+			mcp.Property("content",
+				mcp.Required(true),
+				mcp.Description("Text content to write to the note file"),
+			),
 		),
 	)
 }
 
 // WriteNote writes content to a note
-func (s *NotesServer) WriteNote(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	path, err := req.RequireString("path")
-	if err != nil {
-		return nil, err
-	}
+func (ns *NotesServer) WriteNote(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[WriteNoteRequest]) (*mcp.CallToolResultFor[any], error) {
+	path := req.Arguments.Path
+	content := req.Arguments.Content
 
-	content, err := req.RequireString("content")
-	if err != nil {
-		return nil, err
-	}
-
-	fullPath, err := utils.ValidatePath(s.vaultDir, path)
+	fullPath, err := utils.ValidatePath(ns.vaultDir, path)
 	if err != nil {
 		return nil, err
 	}
@@ -59,41 +70,38 @@ func (s *NotesServer) WriteNote(ctx context.Context, req mcp.CallToolRequest) (*
 		return nil, fmt.Errorf("failed to write file: %w", err)
 	}
 
-	relativePath, _ := filepath.Rel(s.vaultDir, fullPath)
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
+	relativePath, _ := filepath.Rel(ns.vaultDir, fullPath)
+	return &mcp.CallToolResultFor[any]{
+		Content: []*mcp.Content{
 			mcp.NewTextContent(fmt.Sprintf("Successfully wrote to note: %s", relativePath)),
 		},
 	}, nil
 }
 
-func (ns *NotesServer) NewAppendNoteTool() mcp.Tool {
-	return mcp.NewTool("append_note",
-		mcp.WithDescription("Append the contents to the specified note file"),
-		mcp.WithString("path",
-			mcp.Required(),
-			mcp.Description("Path to the note file to append the contents to"),
-		),
-		mcp.WithString("content",
-			mcp.Required(),
-			mcp.Description("Text content to write to the note file"),
-		),
-	)
+func (ns *NotesServer) NewAppendNoteTool() *mcp.ServerTool {
+	return mcp.NewServerTool(
+		"append_note",
+		"Append the contents to the specified note file",
+		ns.AppendNote,
+		mcp.Input(
+			mcp.Property("path",
+				mcp.Required(true),
+				mcp.Description("Path to the note file to append the contents to"),
+			),
+			mcp.Property("content",
+				mcp.Required(true),
+				mcp.Description("Text content to write to the note file"),
+			),
+		))
 }
 
 // AppendNote writes content to the end of an existing note
-func (s *NotesServer) AppendNote(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	path, err := req.RequireString("path")
-	if err != nil {
-		return nil, err
-	}
+func (ns *NotesServer) AppendNote(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[AppendNoteRequest]) (*mcp.CallToolResultFor[any], error) {
+	path := req.Arguments.Path
 
-	content, err := req.RequireString("content")
-	if err != nil {
-		return nil, err
-	}
+	content := req.Arguments.Content
 
-	fullPath, err := utils.ValidatePath(s.vaultDir, path)
+	fullPath, err := utils.ValidatePath(ns.vaultDir, path)
 	if err != nil {
 		return nil, err
 	}
@@ -117,32 +125,33 @@ func (s *NotesServer) AppendNote(ctx context.Context, req mcp.CallToolRequest) (
 		return nil, fmt.Errorf("failed to write file: %w", err)
 	}
 
-	relativePath, _ := filepath.Rel(s.vaultDir, fullPath)
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
+	relativePath, _ := filepath.Rel(ns.vaultDir, fullPath)
+	return &mcp.CallToolResultFor[any]{
+		Content: []*mcp.Content{
 			mcp.NewTextContent(fmt.Sprintf("Successfully wrote to note: %s", relativePath)),
 		},
 	}, nil
 }
 
-func (ns *NotesServer) NewCreateFolderTool() mcp.Tool {
-	return mcp.NewTool("create_folder",
-		mcp.WithDescription("Create a new folder"),
-		mcp.WithString("path",
-			mcp.Required(),
-			mcp.Description("Path to the folder to create"),
+func (ns *NotesServer) NewCreateFolderTool() *mcp.ServerTool {
+	return mcp.NewServerTool(
+		"create_folder",
+		"Create a new folder",
+		ns.CreateFolder,
+		mcp.Input(
+			mcp.Property("path",
+				mcp.Required(true),
+				mcp.Description("Path to the folder to create"),
+			),
 		),
 	)
 }
 
 // CreateFolder creates a new folder
-func (s *NotesServer) CreateFolder(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	path, err := req.RequireString("path")
-	if err != nil {
-		return nil, err
-	}
+func (ns *NotesServer) CreateFolder(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[CreateFolderRequest]) (*mcp.CallToolResultFor[any], error) {
+	path := req.Arguments.Path
 
-	fullPath, err := utils.ValidatePath(s.vaultDir, path)
+	fullPath, err := utils.ValidatePath(ns.vaultDir, path)
 	if err != nil {
 		return nil, err
 	}
@@ -151,9 +160,9 @@ func (s *NotesServer) CreateFolder(ctx context.Context, req mcp.CallToolRequest)
 		return nil, fmt.Errorf("failed to create folder: %w", err)
 	}
 
-	relativePath, _ := filepath.Rel(s.vaultDir, fullPath)
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
+	relativePath, _ := filepath.Rel(ns.vaultDir, fullPath)
+	return &mcp.CallToolResultFor[any]{
+		Content: []*mcp.Content{
 			mcp.NewTextContent(fmt.Sprintf("Successfully created folder: %s", relativePath)),
 		},
 	}, nil

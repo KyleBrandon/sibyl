@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,19 +13,21 @@ import (
 
 // ValidatePath ensures the path is within the vault directory
 func ValidatePath(vaultDir, inputPath string) (string, error) {
+	if vaultDir == "" {
+		slog.Error("Vault folder has not been set")
+		return "", fmt.Errorf("vault folder has not been set as a root by the client")
+	}
+
 	if inputPath == "" {
-		slog.Info("input path is empty, use vault root")
 		return vaultDir, nil
 	}
 
 	// Convert relative path to absolute path within vault
 	var fullPath string
 	if filepath.IsAbs(inputPath) {
-		slog.Info("input path is absolute path", "inputPath", inputPath)
 		fullPath = inputPath
 	} else {
 		fullPath = filepath.Join(vaultDir, inputPath)
-		slog.Info("input path is relative", "inputPath", inputPath, "fullPath", fullPath)
 	}
 
 	// Clean the path
@@ -32,7 +35,8 @@ func ValidatePath(vaultDir, inputPath string) (string, error) {
 
 	// Ensure the path is within the vault directory
 	if !strings.HasPrefix(fullPath, vaultDir) {
-		return "", fmt.Errorf("path is outside vault directory: %s", inputPath)
+		slog.Error("Path is outside the vault directory", "vaultDir", vaultDir, "inputPath", inputPath, "fullPath", fullPath)
+		return "", fmt.Errorf("path is outside vault directory")
 	}
 
 	return fullPath, nil
@@ -72,17 +76,20 @@ func WalkDir(root string, walkFn filepath.WalkFunc) error {
 	return filepath.Walk(root, walkFn)
 }
 
-// Utility functions
-// func Max(a, b int) int {
-// 	if a > b {
-// 		return a
-// 	}
-// 	return b
-// }
-//
-// func min(a, b int) int {
-// 	if a < b {
-// 		return a
-// 	}
-// 	return b
-// }
+func FileURIToPath(fileURI string) (string, error) {
+	u, err := url.Parse(fileURI)
+	if err != nil {
+		return "", err
+	}
+
+	if u.Scheme != "file" {
+		return "", fmt.Errorf("unsupported URI scheme: %s", u.Scheme)
+	}
+
+	// `u.Path` will be percent-decoded automatically.
+	// On macOS, `u.Path` usually starts with a `/` even if it points to `/Users/...`
+	// so we can just clean it with filepath.
+	path := filepath.Clean(u.Path)
+
+	return path, nil
+}

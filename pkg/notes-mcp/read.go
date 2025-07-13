@@ -6,25 +6,27 @@ import (
 	"log/slog"
 
 	"github.com/KyleBrandon/sibyl/pkg/utils"
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func (ns *NotesServer) NewReadNoteTool() mcp.Tool {
-	return mcp.NewTool("read_note",
-		mcp.WithDescription("Read the contents of the note from the file location"),
-		mcp.WithString("path",
-			mcp.Required(),
-			mcp.Description("Path to the note file"),
+type ReadNoteRequest struct {
+	Path string `json:"path,omitempty" mcp:"Path to the note file to read the contents from"`
+}
+
+func (ns *NotesServer) NewReadNoteTool() *mcp.ServerTool {
+	return mcp.NewServerTool(
+		"read_note",
+		"Read the contents of the note from the file location",
+		ns.ReadNote,
+		mcp.Input(
+			mcp.Property("path", mcp.Description("Path to the note file"), mcp.Required(true)),
 		),
 	)
 }
 
 // ReadNote reads the contents of a note
-func (ns *NotesServer) ReadNote(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	path, err := req.RequireString("path")
-	if err != nil {
-		return nil, err
-	}
+func (ns *NotesServer) ReadNote(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[ReadNoteRequest]) (*mcp.CallToolResultFor[any], error) {
+	path := req.Arguments.Path
 
 	fullPath, err := utils.ValidatePath(ns.vaultDir, path)
 	if err != nil {
@@ -52,8 +54,8 @@ func (ns *NotesServer) ReadNote(ctx context.Context, req mcp.CallToolRequest) (*
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
+	return &mcp.CallToolResultFor[any]{
+		Content: []*mcp.Content{
 			mcp.NewTextContent(string(content)),
 		},
 	}, nil
