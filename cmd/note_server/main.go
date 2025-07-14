@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
 	"log/slog"
 	"os"
@@ -10,71 +11,47 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// SibylServer represents our MCP server for Markdown notes
-type SibylServer struct {
-	ctx context.Context
-	// session     *notes.MySession
-	mcpServer   *mcp.Server
-	notesServer *notes.NotesServer
-}
-
-// InitializeMCPServers creates a new Markdown MCP server
-func InitializeMCPServers(ctx context.Context) (*SibylServer, error) {
-	s := &SibylServer{
-		ctx: ctx,
-	}
-
-	serverOptions := mcp.ServerOptions{
-		InitializedHandler:      s.handleInitialized,
-		RootsListChangedHandler: s.handleRootsListChanged,
-	}
-
-	s.mcpServer = mcp.NewServer("note-server", "v1.0.0", &serverOptions)
-	s.notesServer = notes.NewNotesServer(s.mcpServer)
-
-	return s, nil
-}
-
-func (s *SibylServer) handleInitialized(ctx context.Context, session *mcp.ServerSession, params *mcp.InitializedParams) {
-	slog.Info("Initialized", "params", params)
-}
-
-func (s *SibylServer) handleRootsListChanged(ctx context.Context, session *mcp.ServerSession, params *mcp.RootsListChangedParams) {
-	result, err := session.ListRoots(ctx, &mcp.ListRootsParams{})
-	if err != nil {
-		slog.Error("Failed to get the roots", "error", err)
-		return
-	}
-
-	if len(result.Roots) != 1 {
-		slog.Error("We only support a single root at this time")
-		return
-	}
-
-	s.notesServer.SetVaultFolder(result.Roots[0].URI)
-}
-
 func main() {
-	logFile, err := os.OpenFile("server.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	logLevel := flag.String("logLevel", "INFO", "Default logging level to use")
+	logFile := flag.String("logFile", "notes-server.log", "Default log file to log to")
+	configureLogging(*logLevel, *logFile)
+
+	ctx := context.Background()
+	notesServer := notes.NewNotesServer(ctx)
+
+	if err := notesServer.McpServer.Run(ctx, mcp.NewStdioTransport()); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
+}
+
+func configureLogging(logLevel, logFile string) {
+	level := parseLevel(logLevel)
+
+	f, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		slog.Error("Could not open the server log")
 		panic(err)
 	}
 
-	defer logFile.Close()
+	defer f.Close()
 
-	handler := slog.NewJSONHandler(logFile, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+	handler := slog.NewJSONHandler(f, &slog.HandlerOptions{
+		Level: level,
 	})
 	slog.SetDefault(slog.New(handler))
+}
 
-	ctx := context.Background()
-	server, err := InitializeMCPServers(ctx)
-	if err != nil {
-		log.Fatalf("Failed to create server: %v", err)
-	}
-
-	if err := server.mcpServer.Run(ctx, mcp.NewStdioTransport()); err != nil {
-		log.Fatalf("Server error: %v", err)
+func parseLevel(logLevel string) slog.Leveler {
+	switch logLevel {
+	case "DEBUG":
+		return slog.LevelDebug
+	case "INFO":
+		return slog.LevelInfo
+	case "ERROR":
+		return slog.LevelError
+	case "WARN":
+		return slog.LevelWarn
+	default:
+		return slog.LevelWarn
 	}
 }
