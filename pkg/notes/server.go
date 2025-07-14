@@ -1,4 +1,4 @@
-// Package notes contains the MCP tool implementations for processing Markdown notes
+// Package notes_mcp contains the MCP tool implementations for processing Markdown notes
 package notes
 
 import (
