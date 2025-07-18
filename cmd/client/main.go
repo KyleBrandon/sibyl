@@ -26,7 +26,7 @@ func main() {
 	}
 
 	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
 	fmt.Println("Initializing stdio client...")
@@ -68,8 +68,8 @@ func main() {
 	client.AddRoots(&mcp.Root{Name: "note-folder", URI: root})
 
 	res, err := session.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "list_notes",
-		Arguments: map[string]any{"path": "00-inbox"},
+		Name:      "search_drive_files",
+		Arguments: map[string]any{"query": "2025"},
 	})
 	if err != nil {
 		log.Fatal(err)

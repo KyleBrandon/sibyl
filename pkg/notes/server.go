@@ -42,16 +42,17 @@ func (ns *NotesServer) SetVaultFolder(vaultDir string) {
 // addTools adds all the tools to the server
 
 func (ns *NotesServer) addTools() {
-	ns.McpServer.AddTools(ns.NewReadNoteTool())
-	ns.McpServer.AddTools(ns.NewWriteNoteTool())
-	ns.McpServer.AddTools(ns.NewAppendNoteTool())
-	ns.McpServer.AddTools(ns.NewCreateFolderTool())
-	ns.McpServer.AddTools(ns.NewListNotesTool())
-	ns.McpServer.AddTools(ns.NewListFoldersTool())
-	ns.McpServer.AddTools(ns.NewSearchNotesTool())
+	ns.McpServer.AddTools(
+		ns.NewReadNoteTool(),
+		ns.NewWriteNoteTool(),
+		ns.NewAppendNoteTool(),
+		ns.NewCreateFolderTool(),
+		ns.NewListNotesTool(),
+		ns.NewListFoldersTool(),
+		ns.NewSearchNotesTool())
 }
 
-func (sn *NotesServer) handleInitialized(ctx context.Context, session *mcp.ServerSession, params *mcp.InitializedParams) {
+func (ns *NotesServer) handleInitialized(ctx context.Context, session *mcp.ServerSession, params *mcp.InitializedParams) {
 	slog.Info("Initialized", "params", params)
 }
 

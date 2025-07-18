@@ -1,5 +1,7 @@
 bin/
-.DS_Store
 ignore/
+.DS_Store
 *.log
-client.sh
+note-client.sh
+gcp-client.sh
+.env
