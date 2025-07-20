@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"strings"
 
+	"github.com/KyleBrandon/sibyl/pkg/dto"
 	"github.com/KyleBrandon/sibyl/pkg/utils"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/api/drive/v3"
@@ -29,17 +31,7 @@ type ReadDriveFileRequest struct {
 	FileID string `json:"file_id"`
 }
 
-type DriveFileResult struct {
-	ID           string `json:"id,omitempty"`
-	FolderID     string `json:"folder_id,omitempty"`
-	Name         string `json:"name,omitempty"`
-	MimeType     string `json:"mimeType,omitempty"`
-	Size         int64  `json:"size,omitempty"`
-	ModifiedTime string `json:"modifiedTime,omitempty"`
-	WebViewLink  string `json:"webViewLink,omitempty"`
-}
-
-func NewGCPServer(ctx context.Context, credentialsPath string) (*GCPServer, error) {
+func NewGCPServer(ctx context.Context, credentialsPath, notesFolderID string) (*GCPServer, error) {
 	server := &GCPServer{}
 
 	// Initialize Google Drive service
@@ -58,6 +50,7 @@ func NewGCPServer(ctx context.Context, credentialsPath string) (*GCPServer, erro
 
 	server.ctx = ctx
 	server.driveService = driveService
+	server.folderID = notesFolderID
 	server.McpServer = mcp.NewServer("gcp-server", "v1.0.0", &serverOptions)
 	server.addTools()
 
@@ -131,11 +124,9 @@ func (gs *GCPServer) handleSearchFiles(ctx context.Context, session *mcp.ServerS
 	}
 
 	// Format results
-	results := make([]DriveFileResult, 0)
+	results := make([]dto.DriveFileResult, 0)
 	for _, file := range files.Files {
-
-		slog.Info("Add File", "id", file.Id, "Name", file.Name, "Parents", file.Parents)
-		results = append(results, DriveFileResult{
+		results = append(results, dto.DriveFileResult{
 			ID:           file.Id,
 			Name:         file.Name,
 			MimeType:     file.MimeType,
@@ -149,7 +140,7 @@ func (gs *GCPServer) handleSearchFiles(ctx context.Context, session *mcp.ServerS
 
 	return &mcp.CallToolResultFor[any]{
 		Content: []*mcp.Content{
-			mcp.NewTextContent(fmt.Sprintf("Found %d files:\n%s", len(results), string(resultJSON))),
+			mcp.NewTextContent(string(resultJSON)),
 		},
 	}, nil
 }
@@ -169,15 +160,15 @@ func (gs *GCPServer) handleReadFile(ctx context.Context, session *mcp.ServerSess
 	}
 
 	// Handle different file types
-	var content string
+	var fileContents []byte
 	var downloadErr error
 
 	if strings.HasPrefix(file.MimeType, "application/vnd.google-apps.") {
 		// Google Workspace files need to be exported
-		content, downloadErr = gs.exportGoogleWorkspaceFile(fileID, file.MimeType)
+		fileContents, downloadErr = gs.exportGoogleWorkspaceFile(fileID, file.MimeType)
 	} else {
 		// Regular files can be downloaded directly
-		content, downloadErr = gs.downloadRegularFile(fileID)
+		fileContents, downloadErr = gs.downloadRegularFile(fileID)
 	}
 
 	if downloadErr != nil {
@@ -189,15 +180,19 @@ func (gs *GCPServer) handleReadFile(ctx context.Context, session *mcp.ServerSess
 		}, nil
 	}
 
+	textContent := mcp.NewTextContent(fmt.Sprintf("File resource '%s'", file.Name))
+	resource := mcp.NewBlobResourceContents(file.WebContentLink, file.MimeType, fileContents)
+	resContent := mcp.NewResourceContent(resource)
+
 	return &mcp.CallToolResultFor[any]{
 		Content: []*mcp.Content{
-			mcp.NewTextContent(fmt.Sprintf("File: %s\nMIME Type: %s\nSize: %d bytes\n\nContent:\n%s",
-				file.Name, file.MimeType, file.Size, content)),
+			textContent,
+			resContent,
 		},
 	}, nil
 }
 
-func (gs *GCPServer) exportGoogleWorkspaceFile(fileID, mimeType string) (string, error) {
+func (gs *GCPServer) exportGoogleWorkspaceFile(fileID, mimeType string) ([]byte, error) {
 	var exportMimeType string
 
 	// Map Google Workspace MIME types to exportable formats
@@ -209,38 +204,39 @@ func (gs *GCPServer) exportGoogleWorkspaceFile(fileID, mimeType string) (string,
 	case "application/vnd.google-apps.presentation":
 		exportMimeType = "text/plain"
 	default:
-		return "", fmt.Errorf("unsupported Google Workspace file type: %s", mimeType)
+		return nil, fmt.Errorf("unsupported Google Workspace file type: %s", mimeType)
 	}
 
 	resp, err := gs.driveService.Files.Export(fileID, exportMimeType).Download()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	buf := make([]byte, resp.ContentLength)
-	_, err = resp.Body.Read(buf)
+	// Read the exported content into a byte slice
+	content, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return string(buf), nil
+	return content, nil
 }
 
-func (gs *GCPServer) downloadRegularFile(fileID string) (string, error) {
+func (gs *GCPServer) downloadRegularFile(fileID string) ([]byte, error) {
 	resp, err := gs.driveService.Files.Get(fileID).Download()
 	if err != nil {
-		return "", err
+		slog.Error("Failed to get file from GCP", "error", err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	buf := make([]byte, resp.ContentLength)
-	_, err = resp.Body.Read(buf)
+	content, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		slog.Error("Failed to read file body", "error", err)
+		return nil, err
 	}
 
-	return string(buf), nil
+	return content, nil
 }
 
 func (gs *GCPServer) setVaultFolder(vaultDir string) {

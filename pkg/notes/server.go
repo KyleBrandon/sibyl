@@ -15,7 +15,7 @@ type NotesServer struct {
 	vaultDir  string
 }
 
-func NewNotesServer(ctx context.Context) *NotesServer {
+func NewNotesServer(ctx context.Context, notesFolder string) *NotesServer {
 	ns := &NotesServer{}
 
 	serverOptions := mcp.ServerOptions{
@@ -24,13 +24,14 @@ func NewNotesServer(ctx context.Context) *NotesServer {
 	}
 
 	ns.ctx = ctx
+	ns.vaultDir = notesFolder
 	ns.McpServer = mcp.NewServer("note-server", "v1.0.0", &serverOptions)
 	ns.addTools()
 
 	return ns
 }
 
-func (ns *NotesServer) SetVaultFolder(vaultDir string) {
+func (ns *NotesServer) setVaultFolder(vaultDir string) {
 	localPath, err := utils.FileURIToPath(vaultDir)
 	if err != nil {
 		ns.vaultDir = ""
@@ -69,5 +70,5 @@ func (ns *NotesServer) handleRootsListChanged(ctx context.Context, session *mcp.
 		return
 	}
 
-	ns.SetVaultFolder(result.Roots[0].URI)
+	ns.setVaultFolder(result.Roots[0].URI)
 }

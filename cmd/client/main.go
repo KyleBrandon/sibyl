@@ -2,24 +2,24 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"os/exec"
 	"time"
 
+	"github.com/KyleBrandon/sibyl/pkg/dto"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func main() {
 	// Define command line flags
 	server := flag.String("server", "", "Server command to execute")
-	rootDir := flag.String("rootDir", "", "Local folder for the server to use")
 	flag.Parse()
 
-	if *server == "" || *rootDir == "" {
+	if *server == "" {
 		fmt.Println("Error: You must specify the --server <server> --rootDir <note folder>")
 		flag.Usage()
 		os.Exit(1)
@@ -33,12 +33,13 @@ func main() {
 	client := mcp.NewClient("mcp-client", "v1.0.0", nil)
 
 	// Create stdio transport with verbose logging
-	stdioTransport := mcp.NewCommandTransport(exec.Command(*server))
+	// Use shell to allow full command string with arguments
+	stdioTransport := mcp.NewCommandTransport(exec.Command("sh", "-c", *server))
 
 	// Create client with the transport
 	session, err := client.Connect(ctx, stdioTransport)
 	if err != nil {
-		slog.Error("Failed to connect the client", "command", *server, "rootDir", *rootDir, "error", err)
+		slog.Error("Failed to connect the client", "command", *server, "error", err)
 		os.Exit(1)
 	}
 
@@ -64,18 +65,41 @@ func main() {
 		}
 	}
 
-	root := fmt.Sprintf("file://%s", *rootDir)
-	client.AddRoots(&mcp.Root{Name: "note-folder", URI: root})
-
 	res, err := session.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "search_drive_files",
 		Arguments: map[string]any{"query": "2025"},
 	})
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("Failed to search Google Drive for a file", "error", err)
+		os.Exit(1)
 	}
 
-	fmt.Println(res.Content[0].Text)
+	if len(res.Content) != 1 {
+		slog.Error("We should have one result with a JSON list of files")
+		os.Exit(1)
+	}
+
+	content := res.Content[0].Text
+	var files []dto.DriveFileResult
+	err = json.Unmarshal([]byte(content), &files)
+	if err != nil {
+		slog.Error("Failed to unmarshal the files", "content", content, "error", err)
+		os.Exit(1)
+	}
+
+	res, err = session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "read_drive_file",
+		Arguments: map[string]any{"file_id": files[0].ID},
+	})
+	if err != nil {
+		slog.Error("Failed to read the file contents", "error", err)
+		os.Exit(1)
+	}
+
+	text := res.Content[0].Text
+	slog.Info(text)
+	// buffer := res.Content[1].Resource.Blob
+	// os.WriteFile("/Users/kyle/workspaces/mcp/sibyl/file.pdf", buffer, 0666)
 
 	session.Wait()
 }
