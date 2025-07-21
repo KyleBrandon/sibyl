@@ -11,7 +11,7 @@ import (
 
 	"github.com/KyleBrandon/sibyl/pkg/dto"
 	"github.com/KyleBrandon/sibyl/pkg/utils"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 type SearchNotesRequest struct {
@@ -20,28 +20,27 @@ type SearchNotesRequest struct {
 	CaseSensitive bool   `json:"case_sensitive,omitempty" mcp:"Whether search should be case sensitive"`
 }
 
-func (ns *NotesServer) NewSearchNotesTool() *mcp.ServerTool {
-	return mcp.NewServerTool(
+func (ns *NotesServer) NewSearchNotesTool() {
+	tool := mcp.NewTool(
 		"search_notes",
-		"Find all notes that contain the given text",
-		ns.SearchNotes,
-		mcp.Input(
-			mcp.Property("path", mcp.Description("Directory path (option, defaults to vault root)"), mcp.Required(false)),
-			mcp.Property("query", mcp.Description("Search query to perform on the notes"), mcp.Required(true)),
-			mcp.Property("case_sensitive", mcp.Description("Whether search should be case sensitive"), mcp.Required(false)),
-		),
+		mcp.WithDescription("Find all notes that contain the given text"),
+		mcp.WithString("path", mcp.Description("Directory path (option, defaults to vault root)")),
+		mcp.WithString("query", mcp.Description("Search query to perform on the notes"), mcp.Required()),
+		mcp.WithBoolean("case_sensitive", mcp.Description("Whether search should be case sensitive")),
 	)
+
+	ns.McpServer.AddTool(tool, mcp.NewTypedToolHandler(ns.SearchNotes))
 }
 
 // SearchNotes searches for text within notes
-func (ns *NotesServer) SearchNotes(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[SearchNotesRequest]) (*mcp.CallToolResultFor[any], error) {
-	path := req.Arguments.Path
+func (ns *NotesServer) SearchNotes(ctx context.Context, req mcp.CallToolRequest, params SearchNotesRequest) (*mcp.CallToolResult, error) {
+	path := params.Path
 	if path == "" {
 		path = ns.vaultDir
 	}
 
-	query := req.Arguments.Query
-	caseSensitive := req.Arguments.CaseSensitive
+	query := params.Query
+	caseSensitive := params.CaseSensitive
 
 	fullPath, err := utils.ValidatePath(ns.vaultDir, path)
 	if err != nil {
@@ -106,8 +105,8 @@ func (ns *NotesServer) SearchNotes(ctx context.Context, session *mcp.ServerSessi
 		return nil, fmt.Errorf("failed to marshal search results: %w", err)
 	}
 
-	return &mcp.CallToolResultFor[any]{
-		Content: []*mcp.Content{
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
 			mcp.NewTextContent(string(result)),
 		},
 	}, nil

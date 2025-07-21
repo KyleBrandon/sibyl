@@ -10,7 +10,7 @@ import (
 	"github.com/KyleBrandon/sibyl/pkg/gcp-mcp"
 	"github.com/KyleBrandon/sibyl/pkg/utils"
 	"github.com/joho/godotenv"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/mark3labs/mcp-go/server"
 )
 
 var (
@@ -55,7 +55,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := gcpServer.McpServer.Run(ctx, mcp.NewStdioTransport()); err != nil {
+	if err := server.ServeStdio(gcpServer.McpServer); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
 }

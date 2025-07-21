@@ -3,6 +3,7 @@ package gcp
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,14 +12,15 @@ import (
 
 	"github.com/KyleBrandon/sibyl/pkg/dto"
 	"github.com/KyleBrandon/sibyl/pkg/utils"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
 )
 
 type GCPServer struct {
 	ctx          context.Context
-	McpServer    *mcp.Server
+	McpServer    *server.MCPServer
 	driveService *drive.Service
 	folderID     string
 }
@@ -32,7 +34,7 @@ type ReadDriveFileRequest struct {
 }
 
 func NewGCPServer(ctx context.Context, credentialsPath, notesFolderID string) (*GCPServer, error) {
-	server := &GCPServer{}
+	s := &GCPServer{}
 
 	// Initialize Google Drive service
 	driveService, err := drive.NewService(
@@ -43,69 +45,58 @@ func NewGCPServer(ctx context.Context, credentialsPath, notesFolderID string) (*
 		return nil, fmt.Errorf("failed to create drive service: %w", err)
 	}
 
-	serverOptions := mcp.ServerOptions{
-		InitializedHandler:      server.handleInitialized,
-		RootsListChangedHandler: server.handleRootsListChanged,
-	}
+	s.ctx = ctx
+	s.driveService = driveService
+	s.folderID = notesFolderID
+	s.McpServer = server.NewMCPServer("gcp-server", "v1.0.0", server.WithToolCapabilities(true))
+	s.addTools()
 
-	server.ctx = ctx
-	server.driveService = driveService
-	server.folderID = notesFolderID
-	server.McpServer = mcp.NewServer("gcp-server", "v1.0.0", &serverOptions)
-	server.addTools()
-
-	return server, nil
+	return s, nil
 }
 
-func (gs *GCPServer) handleInitialized(ctx context.Context, session *mcp.ServerSession, params *mcp.InitializedParams) {
-	slog.Info("Initialized", "params", params)
-}
-
-// handleRootsListChanged will receive a "root changed" event from the client and update the note server to use the new root folder
-func (gs *GCPServer) handleRootsListChanged(ctx context.Context, session *mcp.ServerSession, params *mcp.RootsListChangedParams) {
-	result, err := session.ListRoots(ctx, &mcp.ListRootsParams{})
-	if err != nil {
-		slog.Error("Failed to get the roots", "error", err)
-		return
-	}
-
-	if len(result.Roots) != 1 {
-		slog.Error("We only support a single root at this time")
-		return
-	}
-
-	gs.setVaultFolder(result.Roots[0].URI)
-}
+// func (gs *GCPServer) handleInitialized(ctx context.Context, session *mcp.ServerSession, params *mcp.InitializedParams) {
+// 	slog.Info("Initialized", "params", params)
+// }
+//
+// // handleRootsListChanged will receive a "root changed" event from the client and update the note server to use the new root folder
+// func (gs *GCPServer) handleRootsListChanged(ctx context.Context, session *mcp.ServerSession, params *mcp.RootsListChangedParams) {
+// 	result, err := session.ListRoots(ctx, &mcp.ListRootsParams{})
+// 	if err != nil {
+// 		slog.Error("Failed to get the roots", "error", err)
+// 		return
+// 	}
+//
+// 	if len(result.Roots) != 1 {
+// 		slog.Error("We only support a single root at this time")
+// 		return
+// 	}
+//
+// 	gs.setVaultFolder(result.Roots[0].URI)
+// }
 
 func (gs *GCPServer) addTools() {
 	// Add search files tool
-	searchFilesTool := mcp.NewServerTool(
+	searchFilesTool := mcp.NewTool(
 		"search_drive_files",
-		"Search for files in Google Drive by name or query",
-		gs.handleSearchFiles,
-		mcp.Input(
-			mcp.Property("query", mcp.Description("Search query (file name or search terms)"), mcp.Required(true)),
-			mcp.Property("folder_id", mcp.Description("The Google Drive folder ID to search in"), mcp.Required(false)),
-			mcp.Property("max_results", mcp.Description("Maximum number of results to return (default: 10)"), mcp.Required(false)),
-		),
+		mcp.WithDescription("Search for files in Google Drive by name or query"),
+		mcp.WithString("query", mcp.Description("Search query (file name or search terms)"), mcp.Required()),
 	)
+
+	gs.McpServer.AddTool(searchFilesTool, mcp.NewTypedToolHandler(gs.handleSearchFiles))
 
 	// // Add read file tool
-	readFileTool := mcp.NewServerTool(
+	readFileTool := mcp.NewTool(
 		"read_drive_file",
-		"Read content from Google Drive file by file ID",
-		gs.handleReadFile,
-		mcp.Input(
-			mcp.Property("file_id", mcp.Description("Google Drive file ID"), mcp.Required(true)),
-		),
+		mcp.WithDescription("Read content from Google Drive file by file ID"),
+		mcp.WithString("file_id", mcp.Description("Google Drive file ID"), mcp.Required()),
 	)
 
-	gs.McpServer.AddTools(searchFilesTool, readFileTool)
+	gs.McpServer.AddTool(readFileTool, mcp.NewTypedToolHandler(gs.handleReadFile))
 }
 
-func (gs *GCPServer) handleSearchFiles(ctx context.Context, session *mcp.ServerSession, request *mcp.CallToolParamsFor[SearchDriveFilesRequest]) (*mcp.CallToolResultFor[any], error) {
+func (gs *GCPServer) handleSearchFiles(ctx context.Context, request mcp.CallToolRequest, params SearchDriveFilesRequest) (*mcp.CallToolResult, error) {
 	// Build search query for Google Drive
-	query := fmt.Sprintf("name contains '%s' and trashed=false and '%s' in parents", request.Arguments.Query, gs.folderID)
+	query := fmt.Sprintf("name contains '%s' and trashed=false and '%s' in parents", params.Query, gs.folderID)
 
 	// Search for files
 	files, err := gs.driveService.Files.List().
@@ -115,9 +106,9 @@ func (gs *GCPServer) handleSearchFiles(ctx context.Context, session *mcp.ServerS
 		Fields("files(id, name, parents, createdTime, modifiedTime, size, webViewLink)").
 		Do()
 	if err != nil {
-		return &mcp.CallToolResultFor[any]{
+		return &mcp.CallToolResult{
 			IsError: true,
-			Content: []*mcp.Content{
+			Content: []mcp.Content{
 				mcp.NewTextContent(fmt.Sprintf("Error searching files: %v", err)),
 			},
 		}, nil
@@ -138,22 +129,23 @@ func (gs *GCPServer) handleSearchFiles(ctx context.Context, session *mcp.ServerS
 
 	resultJSON, _ := json.MarshalIndent(results, "", "  ")
 
-	return &mcp.CallToolResultFor[any]{
-		Content: []*mcp.Content{
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
 			mcp.NewTextContent(string(resultJSON)),
 		},
 	}, nil
 }
 
-func (gs *GCPServer) handleReadFile(ctx context.Context, session *mcp.ServerSession, request *mcp.CallToolParamsFor[ReadDriveFileRequest]) (*mcp.CallToolResultFor[any], error) {
-	fileID := request.Arguments.FileID
-
+func (gs *GCPServer) handleReadFile(ctx context.Context, request mcp.CallToolRequest, params ReadDriveFileRequest) (*mcp.CallToolResult, error) {
 	// Get file metadata first
-	file, err := gs.driveService.Files.Get(fileID).Do()
+	file, err := gs.driveService.Files.
+		Get(params.FileID).
+		Fields("id", "name", "mimeType", "webViewLink").
+		Do()
 	if err != nil {
-		return &mcp.CallToolResultFor[any]{
+		return &mcp.CallToolResult{
 			IsError: true,
-			Content: []*mcp.Content{
+			Content: []mcp.Content{
 				mcp.NewTextContent(fmt.Sprintf("Error getting file metadata: %v", err)),
 			},
 		}, nil
@@ -165,29 +157,32 @@ func (gs *GCPServer) handleReadFile(ctx context.Context, session *mcp.ServerSess
 
 	if strings.HasPrefix(file.MimeType, "application/vnd.google-apps.") {
 		// Google Workspace files need to be exported
-		fileContents, downloadErr = gs.exportGoogleWorkspaceFile(fileID, file.MimeType)
+		fileContents, downloadErr = gs.exportGoogleWorkspaceFile(params.FileID, file.MimeType)
 	} else {
 		// Regular files can be downloaded directly
-		fileContents, downloadErr = gs.downloadRegularFile(fileID)
+		fileContents, downloadErr = gs.downloadRegularFile(params.FileID)
 	}
 
 	if downloadErr != nil {
-		return &mcp.CallToolResultFor[any]{
+		return &mcp.CallToolResult{
 			IsError: true,
-			Content: []*mcp.Content{
+			Content: []mcp.Content{
 				mcp.NewTextContent(fmt.Sprintf("Error reading file content: %v", downloadErr)),
 			},
 		}, nil
 	}
 
-	textContent := mcp.NewTextContent(fmt.Sprintf("File resource '%s'", file.Name))
-	resource := mcp.NewBlobResourceContents(file.WebContentLink, file.MimeType, fileContents)
-	resContent := mcp.NewResourceContent(resource)
+	fileResource := mcp.BlobResourceContents{
+		URI:      file.WebViewLink,
+		MIMEType: file.MimeType,
+		Blob:     base64.StdEncoding.EncodeToString(fileContents),
+	}
+	slog.Info("fileResource", "uri", file.WebViewLink)
+	resource := mcp.NewEmbeddedResource(fileResource)
 
-	return &mcp.CallToolResultFor[any]{
-		Content: []*mcp.Content{
-			textContent,
-			resContent,
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			resource,
 		},
 	}, nil
 }

@@ -2,16 +2,18 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
-	"os/exec"
 	"time"
 
 	"github.com/KyleBrandon/sibyl/pkg/dto"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 func main() {
@@ -30,76 +32,106 @@ func main() {
 	defer cancel()
 
 	fmt.Println("Initializing stdio client...")
-	client := mcp.NewClient("mcp-client", "v1.0.0", nil)
 
-	// Create stdio transport with verbose logging
-	// Use shell to allow full command string with arguments
-	stdioTransport := mcp.NewCommandTransport(exec.Command("sh", "-c", *server))
-
-	// Create client with the transport
-	session, err := client.Connect(ctx, stdioTransport)
+	c, err := client.NewStdioMCPClient(*server, nil)
 	if err != nil {
-		slog.Error("Failed to connect the client", "command", *server, "error", err)
+		slog.Error("Failed to create new client", "error", err)
 		os.Exit(1)
 	}
-
-	defer session.Close()
-
-	// Get a lits of the server tools
-	toolResult, err := session.ListTools(ctx, &mcp.ListToolsParams{})
-	if err != nil {
-		slog.Info("Failed to list the server tools", "error", err)
-	} else {
-		for _, tool := range toolResult.Tools {
-			slog.Info("Server Tool:", "name", tool.Name, "description", tool.Description)
-		}
+	initRequest := mcp.InitializeRequest{}
+	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
+	initRequest.Params.ClientInfo = mcp.Implementation{
+		Name:    "example-client",
+		Version: "1.0.0",
 	}
 
-	// List available resources if the server supports them
-	resourcesResult, err := session.ListResources(ctx, &mcp.ListResourcesParams{})
+	initResult, err := c.Initialize(ctx, initRequest)
 	if err != nil {
-		slog.Info("Failed to list the server resources", "error", err)
-	} else {
-		for _, resource := range resourcesResult.Resources {
-			slog.Info("Server Tool:", "name", resource.Name, "description", resource.Description)
-		}
+		log.Fatalf("Failed to initialize: %v", err)
 	}
+	fmt.Printf(
+		"Initialized with server: %s %s\n\n",
+		initResult.ServerInfo.Name,
+		initResult.ServerInfo.Version,
+	)
 
-	res, err := session.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "search_drive_files",
-		Arguments: map[string]any{"query": "2025"},
-	})
+	// List Tools
+	fmt.Println("Listing available tools...")
+	toolsRequest := mcp.ListToolsRequest{}
+	tools, err := c.ListTools(ctx, toolsRequest)
+	if err != nil {
+		log.Fatalf("Failed to list tools: %v", err)
+	}
+	for _, tool := range tools.Tools {
+		fmt.Printf("- %s: %s\n", tool.Name, tool.Description)
+	}
+	fmt.Println()
+
+	req := mcp.CallToolRequest{}
+	req.Params.Name = "search_drive_files"
+	req.Params.Arguments = map[string]any{"query": "2025"}
+
+	result, err := c.CallTool(ctx, req)
 	if err != nil {
 		slog.Error("Failed to search Google Drive for a file", "error", err)
 		os.Exit(1)
 	}
 
-	if len(res.Content) != 1 {
-		slog.Error("We should have one result with a JSON list of files")
+	printToolResult(result)
+
+	textContent, ok := result.Content[0].(mcp.TextContent)
+	if !ok {
+		slog.Error("Invalid content returned from search_drive_files")
 		os.Exit(1)
 	}
 
-	content := res.Content[0].Text
+	// content := res.Content[0].Text
 	var files []dto.DriveFileResult
-	err = json.Unmarshal([]byte(content), &files)
+	err = json.Unmarshal([]byte(textContent.Text), &files)
 	if err != nil {
-		slog.Error("Failed to unmarshal the files", "content", content, "error", err)
+		slog.Error("Failed to unmarshal the files", "content", textContent, "error", err)
 		os.Exit(1)
 	}
 
-	res, err = session.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "read_drive_file",
-		Arguments: map[string]any{"file_id": files[0].ID},
-	})
+	req = mcp.CallToolRequest{}
+	req.Params.Name = "read_drive_file"
+	req.Params.Arguments = map[string]any{"file_id": files[0].ID}
+
+	result, err = c.CallTool(ctx, req)
 	if err != nil {
 		slog.Error("Failed to read the file contents", "error", err)
 		os.Exit(1)
 	}
 
-	text := res.Content[0].Text
-	slog.Info(text)
-	// buffer := res.Content[1].Resource.Blob
-	// os.WriteFile("/Users/kyle/workspaces/mcp/sibyl/file.pdf", buffer, 0666)
+	resourceContent, ok := result.Content[0].(mcp.EmbeddedResource)
+	if !ok {
+		slog.Error("no embedded resource")
+		os.Exit(1)
+	}
 
-	session.Wait()
+	blobResource, ok := resourceContent.Resource.(mcp.BlobResourceContents)
+	if !ok {
+		slog.Error("no blob resource")
+		os.Exit(1)
+	}
+
+	buffer := make([]byte, base64.StdEncoding.DecodedLen(len(blobResource.Blob)))
+	_, err = base64.StdEncoding.Decode(buffer, []byte(blobResource.Blob))
+	if err != nil {
+		slog.Error("Failed to save the PDF file")
+		os.Exit(1)
+	}
+	os.WriteFile("/Users/kyle/workspaces/mcp/sibyl/file.pdf", buffer, 0666)
+}
+
+// Helper function to print tool results
+func printToolResult(result *mcp.CallToolResult) {
+	for _, content := range result.Content {
+		if textContent, ok := content.(mcp.TextContent); ok {
+			fmt.Println(textContent.Text)
+		} else {
+			jsonBytes, _ := json.MarshalIndent(content, "", "  ")
+			fmt.Println(string(jsonBytes))
+		}
+	}
 }

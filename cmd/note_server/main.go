@@ -11,7 +11,7 @@ import (
 	"github.com/KyleBrandon/sibyl/pkg/notes"
 	"github.com/KyleBrandon/sibyl/pkg/utils"
 	"github.com/joho/godotenv"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/mark3labs/mcp-go/server"
 )
 
 var (
@@ -44,7 +44,7 @@ func main() {
 
 	notesServer := notes.NewNotesServer(ctx, notesRootFolder)
 
-	if err := notesServer.McpServer.Run(ctx, mcp.NewStdioTransport()); err != nil {
+	if err := server.ServeStdio(notesServer.McpServer); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
 }

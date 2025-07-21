@@ -10,7 +10,7 @@ import (
 
 	"github.com/KyleBrandon/sibyl/pkg/dto"
 	"github.com/KyleBrandon/sibyl/pkg/utils"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 type ListNotesRequest struct {
@@ -23,25 +23,23 @@ type ListFoldersRequest struct {
 	Recursive bool   `json:"recursive,omitempty" mcp:"Whether to list recursively"`
 }
 
-func (ns *NotesServer) NewListNotesTool() *mcp.ServerTool {
-	return mcp.NewServerTool(
+func (ns *NotesServer) NewListNotesTool() {
+	tool := mcp.NewTool(
 		"list_notes",
-		"List notes in a directory",
-		ns.ListNotes,
-		mcp.Input(
-			mcp.Property("path", mcp.Description("Directory path (option, defaults to vault root)"), mcp.Required(false)),
-			mcp.Property("recursive", mcp.Description("Whether to list recursively"), mcp.Required(false)),
-		),
+		mcp.WithDescription("List notes in a directory"),
+		mcp.WithString("path", mcp.Description("Directory path (option, defaults to vault root)"), mcp.Required()),
+		mcp.WithBoolean("recursive", mcp.Description("Whether to list recursively")),
 	)
+	ns.McpServer.AddTool(tool, mcp.NewTypedToolHandler(ns.ListNotes))
 }
 
 // ListNotes lists notes in a directory
-func (ns *NotesServer) ListNotes(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[ListNotesRequest]) (*mcp.CallToolResultFor[any], error) {
-	path := req.Arguments.Path
+func (ns *NotesServer) ListNotes(ctx context.Context, req mcp.CallToolRequest, params ListNotesRequest) (*mcp.CallToolResult, error) {
+	path := params.Path
 	if path == "" {
 		path = ns.vaultDir
 	}
-	recursive := req.Arguments.Recursive
+	recursive := params.Recursive
 
 	fullPath, err := utils.ValidatePath(ns.vaultDir, path)
 	if err != nil {
@@ -105,29 +103,28 @@ func (ns *NotesServer) ListNotes(ctx context.Context, session *mcp.ServerSession
 		return nil, fmt.Errorf("failed to marshal notes list: %w", err)
 	}
 
-	return &mcp.CallToolResultFor[any]{
-		Content: []*mcp.Content{
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
 			mcp.NewTextContent(string(result)),
 		},
 	}, nil
 }
 
-func (ns *NotesServer) NewListFoldersTool() *mcp.ServerTool {
-	return mcp.NewServerTool(
+func (ns *NotesServer) NewListFoldersTool() {
+	tool := mcp.NewTool(
 		"list_folders",
-		"List the folders at the given path",
-		ns.ListFolders,
-		mcp.Input(
-			mcp.Property("path", mcp.Description("Directory path (option, defaults to vault root)"), mcp.Required(true)),
-			mcp.Property("recursive", mcp.Description("Whether to return all sub folders")),
-		),
+		mcp.WithDescription("List the folders at the given path"),
+		mcp.WithString("path", mcp.Description("Directory path (option, defaults to vault root)"), mcp.Required()),
+		mcp.WithBoolean("recursive", mcp.Description("Whether to return all sub folders")),
 	)
+
+	ns.McpServer.AddTool(tool, mcp.NewTypedToolHandler(ns.ListFolders))
 }
 
 // ListFolders gets a list of folders at the 'path' location.
-func (ns *NotesServer) ListFolders(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[ListFoldersRequest]) (*mcp.CallToolResultFor[any], error) {
-	path := req.Arguments.Path
-	recursive := req.Arguments.Recursive
+func (ns *NotesServer) ListFolders(ctx context.Context, req mcp.CallToolRequest, params ListFoldersRequest) (*mcp.CallToolResult, error) {
+	path := params.Path
+	recursive := params.Recursive
 
 	fullPath, err := utils.ValidatePath(ns.vaultDir, path)
 	if err != nil {
@@ -189,8 +186,8 @@ func (ns *NotesServer) ListFolders(ctx context.Context, session *mcp.ServerSessi
 		return nil, fmt.Errorf("failed to marshal folders list: %w", err)
 	}
 
-	return &mcp.CallToolResultFor[any]{
-		Content: []*mcp.Content{
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
 			mcp.NewTextContent(string(result)),
 		},
 	}, nil
