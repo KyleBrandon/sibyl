@@ -5,3 +5,5 @@ ignore/
 note-client.sh
 gcp-client.sh
 .env
+./.mcphosts.yaml
+./main
