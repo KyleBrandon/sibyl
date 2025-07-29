@@ -48,6 +48,7 @@ func main() {
 	utils.ConfigureLogging(logLevel, f)
 
 	config := loadGoogleDriveConfig()
+	slog.Info("gcp params", "foler", googleFolderID, "keyfile", googleServiceKeyFile)
 
 	gcpServer, err := gcp.NewGCPServer(ctx, config.serviceKeyFile, config.folderID)
 	if err != nil {

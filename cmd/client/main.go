@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"image/png"
 	"io"
 	"log/slog"
 	"net/http"
@@ -18,12 +19,14 @@ import (
 	"time"
 
 	"github.com/KyleBrandon/sibyl/pkg/dto"
+	"github.com/gen2brain/go-fitz"
+	"github.com/joho/godotenv"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
 	"gopkg.in/yaml.v3"
 )
 
-// MCPHostsConfig represents the structure of .mcphosts.yaml
+// MCPHostsConfig represents the structure of .mcphost.yml
 type MCPHostsConfig struct {
 	MCPServers map[string]MCPServer `yaml:"mcpServers"`
 }
@@ -75,14 +78,21 @@ type ClaudeResponse struct {
 
 func main() {
 	// Define command line flags
-	mcpHostsConfig := flag.String("mcphosts-config", "", "Path to .mcphosts.yaml file")
-	claudeAPIKey := flag.String("claude-api-key", "", "Claude API key (or set CLAUDE_API_KEY env var)")
+	mcpHostsConfig := flag.String("mcphosts-config", "", "Path to .mcphost.yml file")
+	claudeAPIKey := flag.String("claude-api-key", "", "Claude API key (or set ANTHROPIC_API_KEY env var)")
 	systemPromptFile := flag.String("system-prompt", "system_prompt.txt", "Path to system prompt file")
 	flag.Parse()
 
-	// Get Claude API key from environment if not provided
+	// Attempt to load environment file, nonfatal
+	if err := godotenv.Load(); err != nil {
+		slog.Warn("could not load .env file, proceeding without environment file", "error", err)
+	}
+
+	fmt.Println(*claudeAPIKey)
+	// Get Anthropic Claude API key from environment if not provided
 	if *claudeAPIKey == "" {
-		*claudeAPIKey = os.Getenv("CLAUDE_API_KEY")
+		*claudeAPIKey = os.Getenv("ANTHROPIC_API_KEY")
+		fmt.Println(*claudeAPIKey)
 	}
 
 	// Load MCP hosts configuration
@@ -99,7 +109,7 @@ func main() {
 	}
 
 	if *claudeAPIKey == "" {
-		fmt.Println("Error: You must specify --claude-api-key or set CLAUDE_API_KEY environment variable")
+		fmt.Println("Error: You must specify --claude-api-key or set ANTHROPIC_API_KEY environment variable")
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -171,8 +181,8 @@ func loadMCPHostsConfig(configPath string) (*MCPHostsConfig, error) {
 	} else {
 		// Search in order of precedence
 		candidates := []string{
-			"./.mcphosts.yaml",
-			filepath.Join(os.Getenv("HOME"), ".mcphosts.yaml"),
+			"./.mcphost.yml",
+			filepath.Join(os.Getenv("HOME"), ".mcphost.yml"),
 		}
 
 		for _, candidate := range candidates {
@@ -183,7 +193,7 @@ func loadMCPHostsConfig(configPath string) (*MCPHostsConfig, error) {
 		}
 
 		if filePath == "" {
-			return nil, fmt.Errorf("no .mcphosts.yaml file found. Searched: %v", candidates)
+			return nil, fmt.Errorf("no .mcphost.yml file found. Searched: %v", candidates)
 		}
 	}
 
@@ -234,6 +244,7 @@ func initializeMCPClient(ctx context.Context, config *MCPHostsConfig, serverName
 	var fullCmd []string
 	fullCmd = append(fullCmd, server.Command...)
 	fullCmd = append(fullCmd, server.Args...)
+	slog.Info("initializeMCPClient", "server", serverName, "args", fullCmd)
 
 	if len(fullCmd) == 0 {
 		return nil, fmt.Errorf("no command specified for server '%s'", serverName)
@@ -245,7 +256,7 @@ func initializeMCPClient(ctx context.Context, config *MCPHostsConfig, serverName
 		args = fullCmd[1:]
 	}
 
-	c, err := client.NewStdioMCPClient(fullCmd[0], args)
+	c, err := client.NewStdioMCPClient(fullCmd[0], []string{}, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
@@ -347,6 +358,41 @@ func downloadPDFFile(ctx context.Context, gcpClient *client.Client, fileID strin
 	return buffer[:n], nil
 }
 
+// convertPDFToImages converts PDF data to a slice of PNG images
+func convertPDFToImages(pdfData []byte) ([][]byte, error) {
+	// Create a new document from PDF data
+	doc, err := fitz.NewFromMemory(pdfData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open PDF: %w", err)
+	}
+	defer doc.Close()
+
+	var images [][]byte
+	pageCount := doc.NumPage()
+
+	slog.Info("Converting PDF to images", "pages", pageCount)
+
+	// Convert each page to PNG
+	for i := 0; i < pageCount; i++ {
+		// Render page as image
+		img, err := doc.Image(i)
+		if err != nil {
+			return nil, fmt.Errorf("failed to render page %d: %w", i+1, err)
+		}
+
+		// Convert image to PNG bytes
+		var buf bytes.Buffer
+		if err := png.Encode(&buf, img); err != nil {
+			return nil, fmt.Errorf("failed to encode page %d as PNG: %w", i+1, err)
+		}
+
+		images = append(images, buf.Bytes())
+		slog.Info("Converted page to PNG", "page", i+1, "size", buf.Len())
+	}
+
+	return images, nil
+}
+
 func convertPDFToMarkdown(pdfData []byte, fileName string, config *Config) (string, error) {
 	// Load system prompt
 	systemPrompt, err := loadSystemPrompt(config.SystemPromptFile)
@@ -354,85 +400,121 @@ func convertPDFToMarkdown(pdfData []byte, fileName string, config *Config) (stri
 		return "", fmt.Errorf("failed to load system prompt: %w", err)
 	}
 
-	// Prepare Claude API request
-	claudeReq := ClaudeRequest{
-		Model:     "claude-3-5-sonnet-20241022",
-		MaxTokens: 4000,
-		Messages: []Message{
-			{
-				Role: "user",
-				Content: []Content{
-					{
-						Type: "text",
-						Text: fmt.Sprintf("%s\n\nPlease convert this PDF file (%s) to Markdown format:", systemPrompt, fileName),
-					},
-					{
-						Type: "image",
-						Source: &MediaSource{
-							Type:      "base64",
-							MediaType: "application/pdf",
-							Data:      base64.StdEncoding.EncodeToString(pdfData),
+	// Convert PDF to images
+	images, err := convertPDFToImages(pdfData)
+	if err != nil {
+		return "", fmt.Errorf("failed to convert PDF to images: %w", err)
+	}
+
+	if len(images) == 0 {
+		return "", fmt.Errorf("no pages found in PDF")
+	}
+
+	// Process images with Claude
+	var allMarkdown strings.Builder
+
+	for i, imageData := range images {
+		pageNum := i + 1
+		slog.Info("Processing page with Claude", "page", pageNum, "totalPages", len(images))
+
+		// Prepare Claude API request for this page
+		var promptText string
+		if len(images) == 1 {
+			promptText = fmt.Sprintf("%s\n\nPlease convert this PDF page (%s) to Markdown format:", systemPrompt, fileName)
+		} else {
+			promptText = fmt.Sprintf("%s\n\nPlease convert this PDF page (%s, page %d of %d) to Markdown format:", systemPrompt, fileName, pageNum, len(images))
+		}
+
+		claudeReq := ClaudeRequest{
+			Model:     "claude-3-5-sonnet-20241022",
+			MaxTokens: 4000,
+			Messages: []Message{
+				{
+					Role: "user",
+					Content: []Content{
+						{
+							Type: "text",
+							Text: promptText,
+						},
+						{
+							Type: "image",
+							Source: &MediaSource{
+								Type:      "base64",
+								MediaType: "image/png", // Changed from application/pdf
+								Data:      base64.StdEncoding.EncodeToString(imageData),
+							},
 						},
 					},
 				},
 			},
-		},
+		}
+
+		// Make request to Claude API
+		jsonData, err := json.Marshal(claudeReq)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal Claude request for page %d: %w", pageNum, err)
+		}
+
+		req, err := http.NewRequest("POST", "https://api.anthropic.com/v1/messages", bytes.NewBuffer(jsonData))
+		if err != nil {
+			return "", fmt.Errorf("failed to create HTTP request for page %d: %w", pageNum, err)
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("x-api-key", config.ClaudeAPIKey)
+		req.Header.Set("anthropic-version", "2023-06-01")
+
+		client := &http.Client{Timeout: 60 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil {
+			return "", fmt.Errorf("failed to make Claude API request for page %d: %w", pageNum, err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return "", fmt.Errorf("claude API returned status %d for page %d: %s", resp.StatusCode, pageNum, string(body))
+		}
+
+		var claudeResp ClaudeResponse
+		if err := json.NewDecoder(resp.Body).Decode(&claudeResp); err != nil {
+			return "", fmt.Errorf("failed to decode Claude response for page %d: %w", pageNum, err)
+		}
+
+		if len(claudeResp.Content) == 0 {
+			return "", fmt.Errorf("no content in Claude response for page %d", pageNum)
+		}
+
+		// Add page content to result
+		if pageNum > 1 {
+			allMarkdown.WriteString("\n\n---\n\n") // Page separator
+			allMarkdown.WriteString(fmt.Sprintf("## Page %d\n\n", pageNum))
+		}
+		allMarkdown.WriteString(claudeResp.Content[0].Text)
+
+		slog.Info("Successfully processed page", "page", pageNum)
 	}
 
-	// Make request to Claude API
-	jsonData, err := json.Marshal(claudeReq)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal Claude request: %w", err)
-	}
-
-	req, err := http.NewRequest("POST", "https://api.anthropic.com/v1/messages", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return "", fmt.Errorf("failed to create HTTP request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-api-key", config.ClaudeAPIKey)
-	req.Header.Set("anthropic-version", "2023-06-01")
-
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to make Claude API request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("claude API returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var claudeResp ClaudeResponse
-	if err := json.NewDecoder(resp.Body).Decode(&claudeResp); err != nil {
-		return "", fmt.Errorf("failed to decode Claude response: %w", err)
-	}
-
-	if len(claudeResp.Content) == 0 {
-		return "", fmt.Errorf("no content in Claude response")
-	}
-
-	return claudeResp.Content[0].Text, nil
+	return allMarkdown.String(), nil
 }
 
 func loadSystemPrompt(promptFile string) (string, error) {
 	// Create default system prompt if file doesn't exist
-	defaultPrompt := `You are an expert at converting handwritten notes from PDF files to well-structured Markdown format. 
+	defaultPrompt := `You are an expert at converting documents from images to well-structured Markdown format. 
 
 Please follow these guidelines:
 1. Preserve all text content accurately
 2. Use appropriate Markdown formatting (headers, lists, emphasis, etc.)
 3. Structure the content logically with proper headings
 4. If there are diagrams or drawings, describe them in [brackets]
-5. Maintain the original organization and flow of the notes
+5. Maintain the original organization and flow of the content
 6. Use bullet points or numbered lists where appropriate
 7. Bold important terms or concepts
-8. If handwriting is unclear, use [unclear] notation
+8. If text is unclear, use [unclear] notation
+9. For multi-page documents, focus on the content of this specific page
+10. Maintain consistency in formatting across pages
 
-Convert the PDF content to clean, readable Markdown while preserving all meaningful information.`
+Convert the image content to clean, readable Markdown while preserving all meaningful information.`
 
 	// Check if custom prompt file exists
 	if _, err := os.Stat(promptFile); os.IsNotExist(err) {

@@ -21,7 +21,6 @@ func (ns *NotesServer) NewReadNoteTool() {
 	)
 
 	ns.McpServer.AddTool(tool, mcp.NewTypedToolHandler(ns.ReadNote))
-	return
 }
 
 // ReadNote reads the contents of a note

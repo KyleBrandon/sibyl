@@ -40,7 +40,9 @@ func main() {
 	ctx := context.Background()
 
 	utils.ConfigureLogging(logLevel, f)
+	slog.Info("notesFileFolder", "folder", notesFileFolder)
 	notesRootFolder := parseRootFolder()
+	slog.Info("notesFolder", "folder", notesRootFolder)
 
 	notesServer := notes.NewNotesServer(ctx, notesRootFolder)
 
