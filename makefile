@@ -1,22 +1,11 @@
-all: sibyl
+all: pdf_server notes_server
 
+pdf_server:
+	@go build -o ./bin/pdf-server ./cmd/pdf-server/main.go
 
-sibyl: client note_server gcp_server
-
-
-client:
-	@go build -o ./bin/client ./cmd/client/main.go
-
-note_server:
-	@go build -o ./bin/note-server ./cmd/note_server/main.go
-
-gcp_server:
-	@go build -o ./bin/gcp-server ./cmd/gcp_server/main.go
+notes_server:
+	@go build -o ./bin/notes-server ./cmd/note_server/main.go
 
 clean:
-	rm ./bin/*
-
-
-deploy: server
-	cp ./bin/server ~/bin/myserver
+	rm -f ./bin/*
 	

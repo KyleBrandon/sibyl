@@ -3,6 +3,7 @@ module github.com/KyleBrandon/sibyl
 go 1.24.4
 
 require (
+	github.com/gen2brain/go-fitz v1.24.15
 	github.com/joho/godotenv v1.5.1
 	github.com/mark3labs/mcp-go v0.34.0
 	google.golang.org/api v0.241.0
@@ -14,7 +15,6 @@ require (
 	cloud.google.com/go/compute/metadata v0.7.0 // indirect
 	github.com/ebitengine/purego v0.8.4 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/gen2brain/go-fitz v1.24.15 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
@@ -37,5 +37,4 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250603155806-513f23925822 // indirect
 	google.golang.org/grpc v1.73.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

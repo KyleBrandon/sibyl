@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "pdf-server": {
+      "command": "./bin/pdf-server",
+      "args": [
+        "--credentials", "/path/to/google-credentials.json",
+        "--folder-id", "your-google-drive-folder-id",
+        "--log-level", "INFO"
+      ]
+    },
+    "notes-server": {
+      "command": "./bin/notes-server", 
+      "args": [
+        "--notesFolder", "/path/to/your/notes",
+        "--logLevel", "INFO"
+      ]
+    }
+  }
+}

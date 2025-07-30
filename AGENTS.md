@@ -1,10 +1,9 @@
 # Agent Guidelines for Sibyl MCP Project
 
 ## Build Commands
-- `make all` - Build all binaries (client, note_server, gcp_server)
-- `make client` - Build client binary to ./bin/client
-- `make note_server` - Build note server to ./bin/note-server  
-- `make gcp_server` - Build GCP server to ./bin/gcp-server
+- `make all` - Build all MCP servers (pdf_server, notes_server)
+- `make pdf_server` - Build PDF server to ./bin/pdf-server  
+- `make notes_server` - Build notes server to ./bin/notes-server
 - `make clean` - Remove all binaries from ./bin/
 - `go test ./...` - Run all tests
 - `go test ./pkg/notes` - Run tests for specific package
@@ -18,10 +17,12 @@
 - Error handling: Always check errors, use `fmt.Errorf` with `%w` for wrapping
 - Logging: Use `log/slog` with structured logging (e.g., `slog.Error("message", "key", value)`)
 - JSON tags: Use snake_case for JSON field names
-- MCP tools: Use descriptive names with underscores (e.g., `read_note`, `search_drive_files`)
+- MCP tools: Use descriptive names with underscores (e.g., `read_note`, `search_pdfs`)
 
 ## Project Structure
-- `cmd/` - Main applications (client, note_server, gcp_server)
-- `pkg/` - Reusable packages (dto, gcp-mcp, notes, utils)
+- `cmd/` - Main applications (pdf-server, note_server)
+- `pkg/` - Reusable packages (dto, pdf-mcp, notes, utils)
 - `pkg/dto/` - Data transfer objects
-- No existing test files found - create `*_test.go` files following Go conventions
+- `pkg/pdf-mcp/` - PDF processing MCP server implementation
+- `pkg/notes/` - Notes management MCP server implementation
+- Create `*_test.go` files following Go conventions for testing
