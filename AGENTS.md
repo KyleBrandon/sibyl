@@ -1,14 +1,18 @@
 # Agent Guidelines for Sibyl MCP Project
 
 ## Build Commands
+
 - `make all` - Build all MCP servers (pdf_server, notes_server)
-- `make pdf_server` - Build PDF server to ./bin/pdf-server  
+- `make pdf_server` - Build PDF server to ./bin/pdf-server
 - `make notes_server` - Build notes server to ./bin/notes-server
 - `make clean` - Remove all binaries from ./bin/
-- `go test ./...` - Run all tests
+- `go test ./...` - Run all tests (11 test packages, 4,852+ lines of test code)
 - `go test ./pkg/notes` - Run tests for specific package
+- `go test ./tests/integration/...` - Run integration tests
+- `go test ./cmd/...` - Run CLI tests
 
 ## Code Style Guidelines
+
 - Package comments: Use `// Package name description` format
 - Imports: Group standard library, third-party, then local packages with blank lines
 - Types: Use PascalCase for exported types, camelCase for unexported
@@ -20,9 +24,23 @@
 - MCP tools: Use descriptive names with underscores (e.g., `read_note`, `search_pdfs`)
 
 ## Project Structure
+
 - `cmd/` - Main applications (pdf-server, note_server)
 - `pkg/` - Reusable packages (dto, pdf-mcp, notes, utils)
 - `pkg/dto/` - Data transfer objects
 - `pkg/pdf-mcp/` - PDF processing MCP server implementation
 - `pkg/notes/` - Notes management MCP server implementation
+- `tests/` - Integration and performance tests
+- `tests/testutils/` - Test utilities and helpers
 - Create `*_test.go` files following Go conventions for testing
+
+## Test Coverage
+
+- **11 test packages** with comprehensive coverage
+- **4,852+ lines** of test code
+- **Unit tests** for all core functionality
+- **Integration tests** for full workflow testing
+- **Performance tests** for benchmarking
+- **CLI tests** for command-line argument parsing
+- **GitHub Actions CI/CD** pipeline for automated testing
+

@@ -18,6 +18,7 @@ make all
 ```
 
 This creates:
+
 - `./bin/pdf-server` - PDF processing MCP server
 - `./bin/notes-server` - Enhanced notes MCP server
 
@@ -31,17 +32,17 @@ Add the servers to your MCP host configuration (e.g., Claude Desktop, VS Code, e
     "pdf-server": {
       "command": "./bin/pdf-server",
       "args": [
-        "--credentials", "/path/to/google-credentials.json",
-        "--folder-id", "your-google-drive-folder-id",
-        "--log-level", "INFO"
+        "--credentials",
+        "/path/to/google-credentials.json",
+        "--folder-id",
+        "your-google-drive-folder-id",
+        "--log-level",
+        "INFO"
       ]
     },
     "notes-server": {
-      "command": "./bin/notes-server", 
-      "args": [
-        "--notesFolder", "/path/to/your/notes",
-        "--logLevel", "INFO"
-      ]
+      "command": "./bin/notes-server",
+      "args": ["--notesFolder", "/path/to/your/notes", "--logLevel", "INFO"]
     }
   }
 }
@@ -54,10 +55,11 @@ Add the servers to your MCP host configuration (e.g., Claude Desktop, VS Code, e
 **User**: "Help me convert a PDF about machine learning to my notes"
 
 **LLM**: I'll help you convert a PDF to notes. Let me search for PDFs first.
-→ *Calls `search_pdfs(query: "machine learning")`*
+→ _Calls `search_pdfs(query: "machine learning")`_
 
 **LLM**: I found 3 PDFs about machine learning:
-1. "ML Fundamentals.pdf" (2MB, modified yesterday)  
+
+1. "ML Fundamentals.pdf" (2MB, modified yesterday)
 2. "Deep Learning Notes.pdf" (5MB, modified last week)
 3. "ML Algorithms.pdf" (1MB, modified last month)
 
@@ -66,10 +68,10 @@ Which would you like to convert?
 **User**: "The first one"
 
 **LLM**: I'll convert "ML Fundamentals.pdf" to images for processing.
-→ *Calls `convert_pdf_to_images(file_id: "abc123")`*
+→ _Calls `convert_pdf_to_images(file_id: "abc123")`_
 
 **LLM**: The PDF has 8 pages. Let me get appropriate conversion prompts.
-→ *Calls `get_conversion_prompts(document_type: "mixed_content")`*
+→ _Calls `get_conversion_prompts(document_type: "mixed_content")`_
 
 **LLM**: I'll now convert each page using the mixed content prompt optimized for documents with both text and visual elements.
 
@@ -79,7 +81,7 @@ Which would you like to convert?
 
 **User**: "Save it as a new note called 'ML Fundamentals Summary'"
 
-**LLM**: → *Calls `create_note(path: "ML Fundamentals Summary.md", content: markdown)`*
+**LLM**: → _Calls `create_note(path: "ML Fundamentals Summary.md", content: markdown)`_
 
 Perfect! I've saved your converted PDF as "ML Fundamentals Summary.md" in your vault.
 
@@ -88,7 +90,7 @@ Perfect! I've saved your converted PDF as "ML Fundamentals Summary.md" in your v
 **User**: "The handwriting in section 2 wasn't converted well. Can you try again with a different approach?"
 
 **LLM**: I'll re-process that section. Let me get a prompt specifically for handwritten content.
-→ *Calls `get_conversion_prompts(document_type: "handwritten")`*
+→ _Calls `get_conversion_prompts(document_type: "handwritten")`_
 
 **LLM**: [Re-processes with handwriting-focused prompt]
 
@@ -96,23 +98,25 @@ How does this look now? I focused more on the handwritten elements and marked un
 
 **User**: "Much better! Now merge this with my existing research notes"
 
-**LLM**: → *Calls `preview_merge(path: "research_notes.md", content: new_content)`*
+**LLM**: → _Calls `preview_merge(path: "research_notes.md", content: new_content)`_
 
 **LLM**: Here's how the merge would look... Should I proceed?
 
 **User**: "Yes, add it as a new section"
 
-**LLM**: → *Calls `merge_note(path: "research_notes.md", content: new_content, strategy: "date_section")`*
+**LLM**: → _Calls `merge_note(path: "research_notes.md", content: new_content, strategy: "date_section")`_
 
 ## Available Resources
 
 Both servers provide MCP resources for structured exploration of content:
 
 ### PDF Server Resources
+
 - `pdf://documents/` - Collection of PDF documents with metadata
 - `pdf://templates/` - Available conversion templates and prompts
 
-### Notes Server Resources  
+### Notes Server Resources
+
 - `notes://files/` - Collection of note files with tags and previews
 - `notes://templates/` - Available note templates
 - `notes://collections/` - Notes organized by folders and tags
@@ -143,7 +147,7 @@ Resources enable LLMs to discover and explore content without knowing specific p
 ### Merge Strategies
 
 - `append` - Add content to end of file
-- `prepend` - Add content to beginning of file  
+- `prepend` - Add content to beginning of file
 - `date_section` - Add as new dated section
 - `topic_merge` - Intelligent topic-based merging
 - `replace` - Replace entire file content
@@ -158,10 +162,12 @@ Resources enable LLMs to discover and explore content without knowing specific p
 ## Environment Variables
 
 ### PDF Server
+
 - `GOOGLE_APPLICATION_CREDENTIALS` - Path to Google Cloud credentials
 - `GCP_FOLDER_ID` - Google Drive folder ID to search
 
-### Notes Server  
+### Notes Server
+
 - `NOTE_SERVER_FOLDER` - Path to notes directory
 
 ## Advanced Usage
@@ -171,7 +177,7 @@ Resources enable LLMs to discover and explore content without knowing specific p
 The PDF server includes built-in prompts optimized for different document types:
 
 - **Handwritten**: Optimized for handwritten notes and sketches
-- **Typed**: Optimized for typed documents and printed materials  
+- **Typed**: Optimized for typed documents and printed materials
 - **Mixed**: Optimized for documents with both text and visual elements
 - **Research**: Optimized for academic papers and research documents
 
@@ -192,7 +198,7 @@ Create notes from templates with variable substitution:
 User: "Create a meeting note for the ML team standup"
 LLM: → create_note_from_template(
   path: "meetings/ml-standup-2024-01-15.md",
-  template_type: "meeting", 
+  template_type: "meeting",
   variables: {
     "TITLE": "ML Team Standup",
     "ATTENDEES": "Alice, Bob, Charlie",
@@ -202,3 +208,4 @@ LLM: → create_note_from_template(
 ```
 
 This creates a properly formatted meeting note with all the standard sections and your specific details filled in.
+
