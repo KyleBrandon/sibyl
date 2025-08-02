@@ -28,7 +28,7 @@
 - `cmd/` - Main applications (pdf-server, note_server)
 - `pkg/` - Reusable packages (dto, pdf-mcp, notes, utils)
 - `pkg/dto/` - Data transfer objects
-- `pkg/pdf-mcp/` - PDF processing MCP server implementation
+- `pkg/pdf-mcp/` - PDF processing MCP server implementation with OCR support
 - `pkg/notes/` - Notes management MCP server implementation
 - `tests/` - Integration and performance tests
 - `tests/testutils/` - Test utilities and helpers
@@ -44,3 +44,28 @@
 - **CLI tests** for command-line argument parsing
 - **GitHub Actions CI/CD** pipeline for automated testing
 
+## OCR Integration
+
+The PDF server now includes comprehensive OCR support for hybrid text extraction:
+
+### OCR Engines
+
+- **Tesseract** - Local OCR engine, good for typed documents
+- **Google Vision** - Cloud OCR engine, excellent for handwritten content
+- **Mock OCR** - Testing and fallback engine
+
+### Key Features
+
+- **Hybrid Processing** - Combines OCR text extraction with LLM vision analysis
+- **Smart Engine Selection** - Automatically chooses best OCR engine based on document type
+- **Document Analysis** - Analyzes PDFs to recommend optimal processing approach
+- **Multi-language Support** - Configurable language support for OCR engines
+- **Confidence Scoring** - OCR results include confidence metrics for quality assessment
+
+### New MCP Tools
+
+- `extract_text_from_pdf` - Pure OCR text extraction
+- `extract_structured_text` - OCR with layout and structure information
+- `convert_pdf_hybrid` - **Primary tool** - Combines OCR + LLM vision for best results
+- `analyze_document` - Document analysis and OCR recommendations
+- `list_ocr_engines` - List available OCR engines and capabilities

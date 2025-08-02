@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
-	"github.com/KyleBrandon/sibyl/pkg/pdf-mcp"
+	pdf_mcp "github.com/KyleBrandon/sibyl/pkg/pdf-mcp"
 	"github.com/joho/godotenv"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -18,6 +19,13 @@ func main() {
 	folderID := flag.String("folder-id", "", "Google Drive folder ID to search for PDFs")
 	logLevel := flag.String("log-level", "INFO", "Log level (DEBUG, INFO, WARN, ERROR)")
 	logFile := flag.String("log-file", "", "Log file path (optional, logs to stderr if not specified)")
+
+	// OCR-related flags
+	ocrEngine := flag.String("ocr-engine", "mathpix", "Default OCR engine (mathpix, mock)")
+	ocrLanguages := flag.String("ocr-languages", "en", "OCR languages (comma-separated, e.g., en,fr,de)")
+	mathpixAppID := flag.String("mathpix-app-id", "", "Mathpix API App ID")
+	mathpixAppKey := flag.String("mathpix-app-key", "", "Mathpix API App Key")
+
 	flag.Parse()
 
 	// Load environment variables if available
@@ -31,6 +39,13 @@ func main() {
 	}
 	if *folderID == "" {
 		*folderID = os.Getenv("GCP_FOLDER_ID")
+	}
+
+	if *mathpixAppID == "" {
+		*mathpixAppID = os.Getenv("MATHPIX_APP_ID")
+	}
+	if *mathpixAppKey == "" {
+		*mathpixAppKey = os.Getenv("MATHPIX_APP_KEY")
 	}
 
 	// Validate required parameters
@@ -59,7 +74,7 @@ func main() {
 			Level: parseLogLevel(*logLevel),
 		})
 	} else {
-		logHandler = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		logHandler = slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
 			Level: parseLogLevel(*logLevel),
 		})
 	}
@@ -70,13 +85,29 @@ func main() {
 	// Create context
 	ctx := context.Background()
 
-	// Initialize PDF MCP server
+	// Parse OCR languages
+	languages := strings.Split(*ocrLanguages, ",")
+	for i, lang := range languages {
+		languages[i] = strings.TrimSpace(lang)
+	}
+
+	// Create OCR configuration
+	ocrConfig := pdf_mcp.OCRConfig{
+		DefaultEngine: *ocrEngine,
+		Languages:     languages,
+		MathpixAppID:  *mathpixAppID,
+		MathpixAppKey: *mathpixAppKey,
+	}
+
 	slog.Info("Starting PDF MCP Server",
 		"credentials", *credentialsPath,
 		"folder_id", *folderID,
-		"log_level", *logLevel)
+		"log_level", *logLevel,
+		"ocr_engine", *ocrEngine,
+		"ocr_languages", *ocrLanguages,
+		"mathpix_configured", *mathpixAppID != "")
 
-	pdfServer, err := pdf_mcp.NewPDFServer(ctx, *credentialsPath, *folderID)
+	pdfServer, err := pdf_mcp.NewPDFServer(ctx, *credentialsPath, *folderID, ocrConfig)
 	if err != nil {
 		slog.Error("Failed to create PDF server", "error", err)
 		os.Exit(1)

@@ -42,6 +42,9 @@ Successfully refactored Sibyl from a custom orchestrator application into proper
 - **Convert to Images**: High-quality PDF-to-image conversion using MuPDF
 - **Smart Prompts**: Document-type-specific conversion prompts
 - **Conversion Suggestions**: AI-powered approach recommendations
+- **OCR Integration**: Hybrid OCR + LLM Vision processing for optimal accuracy
+- **Multiple OCR Engines**: Support for Tesseract (local) and Google Vision (cloud)
+- **Document Analysis**: Automatic document type detection and OCR engine recommendation
 
 ### 📝 **Enhanced Notes Server**
 
@@ -60,13 +63,18 @@ Successfully refactored Sibyl from a custom orchestrator application into proper
 
 ### PDF Server Tools
 
-| Tool                          | Description                           |
-| ----------------------------- | ------------------------------------- |
-| `search_pdfs`                 | Search Google Drive for PDF files     |
-| `get_pdf_content`             | Download PDF content and metadata     |
-| `convert_pdf_to_images`       | Convert PDF pages to PNG images       |
-| `get_conversion_prompts`      | Get document-type-specific prompts    |
-| `suggest_conversion_approach` | AI-powered conversion recommendations |
+| Tool                          | Description                                    |
+| ----------------------------- | ---------------------------------------------- |
+| `search_pdfs`                 | Search Google Drive for PDF files             |
+| `get_pdf_content`             | Download PDF content and metadata             |
+| `convert_pdf_to_images`       | Convert PDF pages to PNG images               |
+| `get_conversion_prompts`      | Get document-type-specific prompts            |
+| `suggest_conversion_approach` | AI-powered conversion recommendations          |
+| `extract_text_from_pdf`       | Extract text using OCR engines                |
+| `extract_structured_text`     | Extract structured text with layout info      |
+| `convert_pdf_hybrid`          | **Hybrid OCR + Vision conversion**            |
+| `analyze_document`            | Analyze PDF and recommend best OCR approach   |
+| `list_ocr_engines`            | List available OCR engines and capabilities   |
 
 ### Notes Server Tools
 
@@ -106,7 +114,22 @@ User: "Yes"
 LLM: → merge_note("daily.md", content, "date_section")
 ```
 
-### Example 3: Template Usage
+### Example 3: Hybrid OCR + Vision Processing
+
+```
+User: "Convert my handwritten meeting notes PDF"
+LLM: → analyze_document(file_id)
+LLM: "Detected handwritten content. Recommending hybrid approach."
+LLM: → convert_pdf_hybrid(file_id, "handwritten", engine="auto")
+LLM: "I've extracted text via OCR (confidence: 85%) and also have images."
+LLM: "The OCR found: 'Action items: 1) Follow up with client...'"
+LLM: "Cross-referencing with the image, I can see some corrections needed..."
+LLM: [Provides corrected and enhanced conversion using both sources]
+User: "Perfect! Save this as meeting notes"
+LLM: → write_note("meeting-notes-2024-01-15.md", enhanced_content)
+```
+
+### Example 4: Template Usage
 
 ```
 User: "Create a meeting note for our standup"
@@ -153,10 +176,11 @@ LLM: → create_note_from_template(
     "pdf-server": {
       "command": "./bin/pdf-server",
       "args": [
-        "--credentials",
-        "/path/to/google-credentials.json",
-        "--folder-id",
-        "your-drive-folder-id"
+        "--credentials", "/path/to/google-credentials.json",
+        "--folder-id", "your-drive-folder-id",
+        "--ocr-engine", "tesseract",
+        "--ocr-languages", "eng,fra,deu",
+        "--vision-credentials", "/path/to/vision-credentials.json"
       ]
     },
     "notes-server": {
@@ -166,6 +190,20 @@ LLM: → create_note_from_template(
   }
 }
 ```
+
+### OCR Configuration Options
+
+| Flag                  | Description                                    | Default     |
+| --------------------- | ---------------------------------------------- | ----------- |
+| `--ocr-engine`        | Default OCR engine (tesseract, google_vision, mock) | tesseract   |
+| `--ocr-languages`     | OCR languages (comma-separated)               | eng         |
+| `--vision-credentials`| Path to Google Vision API credentials         | (optional)  |
+
+### Environment Variables
+
+- `GOOGLE_APPLICATION_CREDENTIALS` - Google Drive API credentials
+- `GCP_FOLDER_ID` - Google Drive folder ID
+- `GOOGLE_VISION_CREDENTIALS` - Google Vision API credentials
 
 ## Build & Deploy
 
