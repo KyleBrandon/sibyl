@@ -8,6 +8,7 @@
 - `make clean` - Remove all binaries from ./bin/
 - `go test ./...` - Run all tests (11 test packages, 4,852+ lines of test code)
 - `go test ./pkg/notes` - Run tests for specific package
+- `go test -v -run TestMergeStrategies ./pkg/notes` - Run single test function
 - `go test ./tests/integration/...` - Run integration tests
 - `go test ./cmd/...` - Run CLI tests
 

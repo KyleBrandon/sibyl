@@ -17,6 +17,7 @@ import (
 type OCREngine interface {
 	ExtractText(ctx context.Context, imageData []byte) (*OCRResult, error)
 	ExtractStructuredText(ctx context.Context, imageData []byte, documentType string) (*StructuredOCRResult, error)
+	ProcessPDF(ctx context.Context, pdfData []byte) (*OCRResult, error)
 	GetEngineInfo() OCREngineInfo
 }
 
@@ -378,6 +379,81 @@ func (m *MathpixOCR) parseMarkdownToBlocks(markdown string) []TextBlock {
 	return blocks
 }
 
+// ProcessPDF processes a PDF file directly with Mathpix API
+func (m *MathpixOCR) ProcessPDF(ctx context.Context, pdfData []byte) (*OCRResult, error) {
+	start := time.Now()
+
+	// Create multipart form data for PDF
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	
+	// Add PDF file to form
+	part, err := writer.CreateFormFile("file", "document.pdf")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create form file: %w", err)
+	}
+	
+	_, err = part.Write(pdfData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write PDF data: %w", err)
+	}
+	
+	// Add conversion options
+	writer.WriteField("options_json", `{"conversion_formats": {"md": true}}`)
+	writer.Close()
+
+	// Create HTTP request to Mathpix PDF API
+	req, err := http.NewRequestWithContext(ctx, "POST", MathpixPdfApiURL, body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("app_id", m.appID)
+	req.Header.Set("app_key", m.appKey)
+
+	// Send request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode > 299 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("mathpix API request failed with status %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	// Parse initial response to get PDF ID
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var initialResp MathpixUploadResponse
+	err = json.Unmarshal(respBody, &initialResp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	// Poll for completion and get results
+	markdownText, err := m.pollForResults(ctx, initialResp.PdfID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get conversion results: %w", err)
+	}
+
+	processingTime := time.Since(start)
+
+	return &OCRResult{
+		Text:           markdownText,
+		Confidence:     0.95, // Mathpix generally has high confidence
+		Language:       "en",
+		ProcessingTime: processingTime,
+		Engine:         "mathpix",
+	}, nil
+}
+
 // MockOCR implements a mock OCR engine for testing and fallback
 type MockOCR struct {
 	languages []string
@@ -441,6 +517,31 @@ func (m *MockOCR) ExtractStructuredText(ctx context.Context, imageData []byte, d
 			HasTables:   false,
 			HasDiagrams: false,
 		},
+	}, nil
+}
+
+func (m *MockOCR) ProcessPDF(ctx context.Context, pdfData []byte) (*OCRResult, error) {
+	// Mock implementation - just return simple mock content
+	mockText := `# Mock PDF Conversion
+
+This is a mock conversion of a PDF document for testing purposes.
+
+## Content
+
+The PDF contained text that has been extracted and converted to Markdown format.
+
+- Item 1
+- Item 2
+- Item 3
+
+Mock processing complete.`
+
+	return &OCRResult{
+		Text:           mockText,
+		Confidence:     0.80,
+		Language:       "en",
+		ProcessingTime: time.Millisecond * 100, // Simulate fast processing
+		Engine:         "mock",
 	}, nil
 }
 

@@ -39,14 +39,6 @@ func NewNotesServer(ctx context.Context, notesFolder string) *NotesServer {
 	return ns
 }
 
-// func (ns *NotesServer) setVaultFolder(vaultDir string) {
-// 	localPath, err := utils.FileURIToPath(vaultDir)
-// 	if err != nil {
-// 		ns.vaultDir = ""
-// 	} else {
-// 		ns.vaultDir = localPath
-// 	}
-// }
 
 func (ns *NotesServer) addResources() {
 	// Resource 1: Note Files collection
@@ -97,25 +89,6 @@ func (ns *NotesServer) addTools() {
 	ns.NewCreateFromTemplateTool()
 }
 
-// func (ns *NotesServer) handleInitialized(ctx context.Context, session *mcp.ServerSession, params *mcp.InitializedParams) {
-// 	slog.Info("Initialized", "params", params)
-// }
-//
-// // handleRootsListChanged will receive a "root changed" event from the client and update the note server to use the new root folder
-// func (ns *NotesServer) handleRootsListChanged(ctx context.Context, session *mcp.ServerSession, params *mcp.RootsListChangedParams) {
-// 	result, err := session.ListRoots(ctx, &mcp.ListRootsParams{})
-// 	if err != nil {
-// 		slog.Error("Failed to get the roots", "error", err)
-// 		return
-// 	}
-//
-// 	if len(result.Roots) != 1 {
-// 		slog.Error("We only support a single root at this time")
-// 		return
-// 	}
-//
-// 	ns.setVaultFolder(result.Roots[0].URI)
-// }
 
 // Resource handlers
 

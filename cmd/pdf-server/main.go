@@ -20,11 +20,10 @@ func main() {
 	logLevel := flag.String("log-level", "INFO", "Log level (DEBUG, INFO, WARN, ERROR)")
 	logFile := flag.String("log-file", "", "Log file path (optional, logs to stderr if not specified)")
 
-	// OCR-related flags
-	ocrEngine := flag.String("ocr-engine", "mathpix", "Default OCR engine (mathpix, mock)")
+	// Mathpix OCR configuration (required)
 	ocrLanguages := flag.String("ocr-languages", "en", "OCR languages (comma-separated, e.g., en,fr,de)")
-	mathpixAppID := flag.String("mathpix-app-id", "", "Mathpix API App ID")
-	mathpixAppKey := flag.String("mathpix-app-key", "", "Mathpix API App Key")
+	mathpixAppID := flag.String("mathpix-app-id", "", "Mathpix API App ID (required)")
+	mathpixAppKey := flag.String("mathpix-app-key", "", "Mathpix API App Key (required)")
 
 	flag.Parse()
 
@@ -93,7 +92,6 @@ func main() {
 
 	// Create OCR configuration
 	ocrConfig := pdf_mcp.OCRConfig{
-		DefaultEngine: *ocrEngine,
 		Languages:     languages,
 		MathpixAppID:  *mathpixAppID,
 		MathpixAppKey: *mathpixAppKey,
@@ -103,7 +101,6 @@ func main() {
 		"credentials", *credentialsPath,
 		"folder_id", *folderID,
 		"log_level", *logLevel,
-		"ocr_engine", *ocrEngine,
 		"ocr_languages", *ocrLanguages,
 		"mathpix_configured", *mathpixAppID != "")
 
