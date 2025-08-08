@@ -1,4 +1,4 @@
-package pdf_mcp
+package pdfmcp
 
 import (
 	"context"

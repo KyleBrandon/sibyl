@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	pdf_mcp "github.com/KyleBrandon/sibyl/pkg/pdf-mcp"
+	pdfmcp "github.com/KyleBrandon/sibyl/pkg/pdfmcp"
 	"github.com/joho/godotenv"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -91,7 +91,7 @@ func main() {
 	}
 
 	// Create OCR configuration
-	ocrConfig := pdf_mcp.OCRConfig{
+	ocrConfig := pdfmcp.OCRConfig{
 		Languages:     languages,
 		MathpixAppID:  *mathpixAppID,
 		MathpixAppKey: *mathpixAppKey,
@@ -104,7 +104,7 @@ func main() {
 		"ocr_languages", *ocrLanguages,
 		"mathpix_configured", *mathpixAppID != "")
 
-	pdfServer, err := pdf_mcp.NewPDFServer(ctx, *credentialsPath, *folderID, ocrConfig)
+	pdfServer, err := pdfmcp.NewPDFServer(ctx, *credentialsPath, *folderID, ocrConfig)
 	if err != nil {
 		slog.Error("Failed to create PDF server", "error", err)
 		os.Exit(1)

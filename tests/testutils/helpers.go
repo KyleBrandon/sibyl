@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/KyleBrandon/sibyl/pkg/notes"
-	"github.com/KyleBrandon/sibyl/pkg/pdf-mcp"
+	"github.com/KyleBrandon/sibyl/pkg/pdfmcp"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -57,7 +57,7 @@ func SetupNotesServer(t *testing.T, vault *TestVault) *notes.NotesServer {
 }
 
 // SetupPDFServer creates a PDF server for testing (with mock credentials)
-func SetupPDFServer(t *testing.T) *pdf_mcp.PDFServer {
+func SetupPDFServer(t *testing.T) *pdfmcp.PDFServer {
 	t.Helper()
 
 	// Note: This would require mock credentials in a real test
@@ -66,7 +66,7 @@ func SetupPDFServer(t *testing.T) *pdf_mcp.PDFServer {
 
 	// In a real implementation, we'd use dependency injection or mocks
 	// to avoid requiring actual Google credentials
-	server := &pdf_mcp.PDFServer{}
+	server := &pdfmcp.PDFServer{}
 	_ = ctx // Use context to avoid unused variable warning
 
 	return server

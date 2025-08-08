@@ -1,5 +1,5 @@
-// Package pdf_mcp provides MCP server for PDF processing and conversion
-package pdf_mcp
+// Package pdfmcp provides MCP server for PDF processing and conversion
+package pdfmcp
 
 import (
 	"context"
@@ -28,7 +28,6 @@ type SearchPDFsRequest struct {
 	MaxFiles int    `json:"max_files,omitempty" mcp:"Maximum number of files to return (default: 10)"`
 }
 
-
 // Simplified conversion request
 type ConvertPDFToMarkdownRequest struct {
 	FileID string `json:"file_id" mcp:"Google Drive file ID of the PDF to convert"`
@@ -53,14 +52,13 @@ func NewPDFServer(ctx context.Context, credentialsPath, folderID string, ocrConf
 		return nil, fmt.Errorf("failed to create drive service: %w", err)
 	}
 
-
 	// Initialize OCR manager with Mathpix (required for simplified approach)
 	if ocrConfig.MathpixAppID == "" || ocrConfig.MathpixAppKey == "" {
 		return nil, fmt.Errorf("Mathpix credentials are required for PDF conversion")
 	}
 
 	ocrManager := NewOCRManager()
-	
+
 	// Register only Mathpix OCR engine
 	mathpix := NewMathpixOCR(ocrConfig.MathpixAppID, ocrConfig.MathpixAppKey, ocrConfig.Languages)
 	ocrManager.RegisterEngine("mathpix", mathpix)
@@ -237,10 +235,10 @@ Correct any OCR errors you can identify by comparing with the visual images.
 	}
 
 	// Add all the images
-	for i, imageB64 := range base64Images {
+	for _, imageB64 := range base64Images {
 		content = append(content, mcp.NewImageContent(
-			fmt.Sprintf("data:image/png;base64,%s", imageB64),
-			fmt.Sprintf("Page %d of the PDF", i+1),
+			imageB64,
+			"image/png",
 		))
 	}
 

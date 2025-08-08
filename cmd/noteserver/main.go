@@ -21,9 +21,9 @@ var (
 )
 
 func init() {
-	flag.StringVar(&logLevel, "logLevel", "INFO", "Default logging level to use")
-	flag.StringVar(&logFileName, "logFile", "notes-server.log", "Default log file to log to")
-	flag.StringVar(&notesFileFolder, "notesFolder", "", "Folder containing the notes")
+	flag.StringVar(&logLevel, "log-level", "INFO", "Default logging level to use")
+	flag.StringVar(&logFileName, "log-file", "notes-server.log", "Default log file to log to")
+	flag.StringVar(&notesFileFolder, "notes-folder", "", "Folder containing the notes")
 }
 
 func main() {
