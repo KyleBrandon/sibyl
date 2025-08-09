@@ -22,7 +22,7 @@ Sibyl is a dual MCP (Model Context Protocol) server application providing PDF pr
 ## Development Commands
 
 ### Build Commands
-- `make all` - Build both MCP servers (pdf_server, notes_server)
+- `make all` - Build both MCP servers (pdfserver, noteserver)
 - `make pdf_server` - Build PDF server to ./bin/pdf-server  
 - `make notes_server` - Build notes server to ./bin/notes-server
 - `make clean` - Remove all binaries from ./bin/
@@ -138,7 +138,7 @@ The project maintains comprehensive test coverage with:
 - **Unit tests** for all core functionality
 - **Integration tests** for full workflow validation
 - **Performance benchmarks** for scalability testing
-- **70% minimum coverage threshold** enforced by CI/CD
+- **45% minimum coverage threshold** enforced by CI/CD
 
 ## CI/CD Pipeline
 
