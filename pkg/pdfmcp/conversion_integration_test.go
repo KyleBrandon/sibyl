@@ -28,7 +28,9 @@ func TestConvertPDFToMarkdownIntegration(t *testing.T) {
 	ocrManager := NewOCRManager()
 	mockOCR := NewMockOCR([]string{"en"})
 	ocrManager.RegisterEngine("mathpix", mockOCR)
-	ocrManager.SetDefaultEngine("mathpix")
+	if err := ocrManager.SetDefaultEngine("mathpix"); err != nil {
+		t.Fatalf("Failed to set default OCR engine: %v", err)
+	}
 
 	ps := &PDFServer{
 		ctx:        ctx,

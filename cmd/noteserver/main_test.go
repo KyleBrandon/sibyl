@@ -200,9 +200,13 @@ func TestNotesFolderValidation(t *testing.T) {
 			name: "Valid directory with notes",
 			setup: func() string {
 				notesDir := filepath.Join(tempDir, "notes")
-				os.MkdirAll(notesDir, 0755)
+				if err := os.MkdirAll(notesDir, 0755); err != nil {
+					t.Fatalf("Failed to create notes directory: %v", err)
+				}
 				// Create a test note
-				os.WriteFile(filepath.Join(notesDir, "test.md"), []byte("# Test"), 0644)
+				if err := os.WriteFile(filepath.Join(notesDir, "test.md"), []byte("# Test"), 0644); err != nil {
+					t.Fatalf("Failed to create test file: %v", err)
+				}
 				return notesDir
 			},
 			valid: true,
@@ -218,7 +222,9 @@ func TestNotesFolderValidation(t *testing.T) {
 			name: "File instead of directory",
 			setup: func() string {
 				filePath := filepath.Join(tempDir, "notadir.txt")
-				os.WriteFile(filePath, []byte("test"), 0644)
+				if err := os.WriteFile(filePath, []byte("test"), 0644); err != nil {
+					t.Fatalf("Failed to create test file: %v", err)
+				}
 				return filePath
 			},
 			valid: false,

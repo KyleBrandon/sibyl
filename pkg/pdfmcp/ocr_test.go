@@ -339,7 +339,9 @@ func TestOCRManager_ExtractTextWithBestEngine(t *testing.T) {
 	manager := NewOCRManager()
 	mockOCR := NewMockOCR([]string{"eng"})
 	manager.RegisterEngine("mock", mockOCR)
-	manager.SetDefaultEngine("mock")
+	if err := manager.SetDefaultEngine("mock"); err != nil {
+		t.Fatalf("Failed to set default OCR engine: %v", err)
+	}
 
 	testImageData := []byte("test image data")
 	ctx := context.Background()
@@ -362,7 +364,9 @@ func TestOCRManager_ExtractStructuredTextWithBestEngine(t *testing.T) {
 	manager := NewOCRManager()
 	mockOCR := NewMockOCR([]string{"eng"})
 	manager.RegisterEngine("mock", mockOCR)
-	manager.SetDefaultEngine("mock")
+	if err := manager.SetDefaultEngine("mock"); err != nil {
+		t.Fatalf("Failed to set default OCR engine: %v", err)
+	}
 
 	testImageData := []byte("test image data")
 	ctx := context.Background()

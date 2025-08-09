@@ -3,7 +3,6 @@ package pdfmcp
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 
@@ -62,7 +61,10 @@ func NewPDFServer(ctx context.Context, credentialsPath, folderID string, ocrConf
 	// Register only Mathpix OCR engine
 	mathpix := NewMathpixOCR(ocrConfig.MathpixAppID, ocrConfig.MathpixAppKey, ocrConfig.Languages)
 	ocrManager.RegisterEngine("mathpix", mathpix)
-	ocrManager.SetDefaultEngine("mathpix")
+	err = ocrManager.SetDefaultEngine("mathpix")
+	if err != nil {
+		return nil, fmt.Errorf("failed to set default OCR engine: %w", err)
+	}
 
 	s.ctx = ctx
 	s.driveService = driveService
@@ -311,15 +313,3 @@ func (ps *PDFServer) getPDFContentBytes(fileID string) ([]byte, error) {
 	return pdfData, nil
 }
 
-// Helper function to convert base64 images to byte arrays
-func (ps *PDFServer) convertBase64ImagesToBytes(base64Images []string) ([][]byte, error) {
-	images := make([][]byte, len(base64Images))
-	for i, b64 := range base64Images {
-		imageData, err := base64.StdEncoding.DecodeString(b64)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode image %d: %w", i, err)
-		}
-		images[i] = imageData
-	}
-	return images, nil
-}

@@ -101,7 +101,9 @@ func BenchmarkConvertPDFToMarkdown(b *testing.B) {
 	ocrManager := NewOCRManager()
 	mockOCR := NewMockOCR([]string{"en"})
 	ocrManager.RegisterEngine("mathpix", mockOCR)
-	ocrManager.SetDefaultEngine("mathpix")
+	if err := ocrManager.SetDefaultEngine("mathpix"); err != nil {
+		b.Fatalf("Failed to set default OCR engine: %v", err)
+	}
 
 	ps := &PDFServer{
 		ctx:        ctx,
@@ -114,6 +116,6 @@ func BenchmarkConvertPDFToMarkdown(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		// Note: This will fail due to missing mocks, but tests the structure
-		ps.ConvertPDFToMarkdown(ctx, request, params)
+		_, _ = ps.ConvertPDFToMarkdown(ctx, request, params)
 	}
 }

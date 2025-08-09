@@ -399,7 +399,10 @@ func (m *MathpixOCR) ProcessPDF(ctx context.Context, pdfData []byte) (*OCRResult
 	}
 	
 	// Add conversion options
-	writer.WriteField("options_json", `{"conversion_formats": {"md": true}}`)
+	err = writer.WriteField("options_json", `{"conversion_formats": {"md": true}}`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write options field: %w", err)
+	}
 	writer.Close()
 
 	// Create HTTP request to Mathpix PDF API

@@ -6,25 +6,8 @@ import (
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
-	"google.golang.org/api/drive/v3"
 )
 
-// Mock Drive Service for testing
-type mockDriveService struct {
-	files   map[string]*drive.File
-	content map[string][]byte
-	errors  map[string]error
-}
-
-func (m *mockDriveService) GetFile(fileID string) (*drive.File, error) {
-	if err, exists := m.errors[fileID]; exists {
-		return nil, err
-	}
-	if file, exists := m.files[fileID]; exists {
-		return file, nil
-	}
-	return &drive.File{}, nil
-}
 
 func TestListDocuments_Success(t *testing.T) {
 	// Skip this test since it requires proper Drive service mocking
@@ -136,7 +119,7 @@ func BenchmarkListDocuments(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		// Note: This will fail due to missing Drive service, but tests the structure
-		ps.ListDocuments(ctx, request)
+		_, _ = ps.ListDocuments(ctx, request)
 	}
 }
 
