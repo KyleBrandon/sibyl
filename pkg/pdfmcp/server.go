@@ -53,7 +53,7 @@ func NewPDFServer(ctx context.Context, credentialsPath, folderID string, ocrConf
 
 	// Initialize OCR manager with Mathpix (required for simplified approach)
 	if ocrConfig.MathpixAppID == "" || ocrConfig.MathpixAppKey == "" {
-		return nil, fmt.Errorf("Mathpix credentials are required for PDF conversion")
+		return nil, fmt.Errorf("mathpix credentials are required for PDF conversion")
 	}
 
 	ocrManager := NewOCRManager()
@@ -312,4 +312,3 @@ func (ps *PDFServer) getPDFContentBytes(fileID string) ([]byte, error) {
 	}
 	return pdfData, nil
 }
-
