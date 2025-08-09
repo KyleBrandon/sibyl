@@ -96,7 +96,7 @@ jobs:
           test -f bin/notes-server
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: mcp-servers
           path: bin/
@@ -136,7 +136,7 @@ jobs:
           cat benchmark.txt
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
           path: benchmark.txt
