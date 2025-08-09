@@ -1,192 +1,204 @@
-# MCP Resources Guide
+# MCP Resources Reference
 
-This document describes the MCP resources available in the Sibyl servers, which provide structured access to documents and data for LLM exploration.
+Technical reference for Sibyl's MCP resources - the structured data endpoints that enable LLM exploration and discovery.
 
 ## PDF Server Resources
 
-The PDF server provides resources for exploring and working with PDF documents stored in Google Drive.
+### `pdf://documents/`
+**Type**: Collection  
+**MIME Type**: `application/json`  
+**Description**: Complete PDF document catalog
 
-### Available Resources
-
-#### 1. PDF Documents Collection (`pdf://documents/`)
-Lists all PDF documents in the configured Google Drive folder.
-
-**Resource URI:** `pdf://documents/`  
-**MIME Type:** `application/json`  
-**Description:** Collection of PDF documents in Google Drive folder
-
-**Example Response:**
+**Schema**:
 ```json
 [
   {
-    "id": "1BxYz...",
-    "name": "research-paper.pdf",
-    "size": 2048576,
-    "created": "2025-01-15T10:30:00Z",
-    "modified": "2025-01-15T10:30:00Z",
-    "webViewLink": "https://drive.google.com/file/d/1BxYz.../view",
-    "thumbnailLink": "https://drive.google.com/thumbnail?id=1BxYz...",
-    "uri": "pdf://documents/1BxYz..."
+    "id": "string",           // Google Drive file ID
+    "name": "string",         // Filename
+    "size": number,           // File size in bytes  
+    "created": "string",      // ISO 8601 timestamp
+    "modified": "string",     // ISO 8601 timestamp
+    "webViewLink": "string",  // Direct Google Drive link
+    "thumbnailLink": "string", // Preview image URL
+    "uri": "string"           // MCP resource URI
   }
 ]
 ```
 
-#### 2. Conversion Templates (`pdf://templates/`)
-Available PDF to Markdown conversion templates with specialized prompts.
-
-**Resource URI:** `pdf://templates/`  
-**MIME Type:** `application/json`  
-**Description:** Available PDF to Markdown conversion templates
-
-**Example Response:**
+**Example Response**:
 ```json
-{
-  "handwritten": {
-    "name": "Handwritten Notes",
-    "description": "Optimized for converting handwritten notes and sketches",
-    "uri": "pdf://templates/handwritten",
-    "type": "handwritten",
-    "use_case": "Personal notes, meeting notes, sketches, diagrams",
-    "prompt": "You are an expert at converting handwritten notes..."
-  },
-  "typed": {
-    "name": "Typed Documents",
-    "description": "Optimized for typed documents and papers",
-    "uri": "pdf://templates/typed",
-    "type": "typed", 
-    "use_case": "Academic papers, reports, articles",
-    "prompt": "You are an expert at converting typed documents..."
+[
+  {
+    "id": "1BxYz4cR9tF3k2mN8qW7sV6uA5bP",
+    "name": "machine-learning-paper.pdf", 
+    "size": 2048576,
+    "created": "2025-01-15T10:30:00Z",
+    "modified": "2025-01-15T14:22:00Z",
+    "webViewLink": "https://drive.google.com/file/d/1BxYz.../view",
+    "thumbnailLink": "https://drive.google.com/thumbnail?id=1BxYz...",
+    "uri": "pdf://documents/1BxYz4cR9tF3k2mN8qW7sV6uA5bP"
   }
-}
+]
 ```
 
 ## Notes Server Resources
 
-The Notes server provides resources for exploring and organizing markdown notes in your vault.
+### `notes://files/`
+**Type**: Collection  
+**MIME Type**: `application/json`  
+**Description**: Complete notes collection with metadata
 
-### Available Resources
-
-#### 1. Note Files Collection (`notes://files/`)
-Lists all markdown files in the notes vault with metadata and previews.
-
-**Resource URI:** `notes://files/`  
-**MIME Type:** `application/json`  
-**Description:** Collection of markdown note files in the vault
-
-**Example Response:**
+**Schema**:
 ```json
 [
   {
-    "path": "projects/sibyl.md",
-    "name": "sibyl.md",
-    "size": 1024,
-    "modified": "2025-01-15T14:30:00Z",
-    "uri": "notes://files/projects/sibyl.md",
-    "tags": ["development", "mcp", "ai"],
-    "preview": "# Sibyl MCP Project This project implements MCP servers for PDF processing..."
+    "path": "string",         // Relative file path
+    "name": "string",         // Filename
+    "size": number,           // File size in bytes
+    "modified": "string",     // ISO 8601 timestamp  
+    "uri": "string",          // MCP resource URI
+    "tags": ["string"],       // Extracted YAML frontmatter tags
+    "preview": "string"       // First 200 chars of content
   }
 ]
 ```
 
-#### 2. Note Templates (`notes://templates/`)
-Available note templates for different purposes and workflows.
+### `notes://templates/`
+**Type**: Dictionary  
+**MIME Type**: `application/json`  
+**Description**: Available note templates
 
-**Resource URI:** `notes://templates/`  
-**MIME Type:** `application/json`  
-**Description:** Available note templates for different purposes
+**Schema**:
+```json
+{
+  "template_id": {
+    "name": "string",         // Display name
+    "description": "string",  // Purpose description
+    "use_case": "string",     // When to use this template  
+    "uri": "string",          // MCP resource URI
+    "content": "string"       // Template content with {{VARIABLES}}
+  }
+}
+```
 
-**Example Response:**
+**Example Response**:
 ```json
 {
   "daily": {
     "name": "Daily Note",
-    "description": "Template for daily notes with common sections",
-    "use_case": "Daily journaling, task tracking, quick notes",
+    "description": "Template for daily notes with focus areas and tasks",
+    "use_case": "Daily planning, journaling, task tracking",
     "uri": "notes://templates/daily",
-    "content": "# Daily Note - {{DATE}}\n\n## Today's Focus\n..."
+    "content": "# Daily Note - {{DATE}}\n\n## Today's Focus\n- {{FOCUS_1}}\n- {{FOCUS_2}}\n\n## Tasks\n- [ ] {{TASK_1}}\n- [ ] {{TASK_2}}\n\n## Notes\n{{NOTES}}\n\n## Reflection\n{{REFLECTION}}"
   },
   "meeting": {
-    "name": "Meeting Notes", 
-    "description": "Template for meeting notes with agenda and action items",
+    "name": "Meeting Notes",
+    "description": "Structured meeting documentation with action items",
     "use_case": "Meeting documentation, action item tracking",
     "uri": "notes://templates/meeting",
-    "content": "# Meeting Notes - {{TITLE}}\n\n**Date:** {{DATE}}..."
+    "content": "# Meeting Notes - {{TITLE}}\n\n**Date:** {{DATE}}  \n**Attendees:** {{ATTENDEES}}  \n**Duration:** {{DURATION}}\n\n## Agenda\n{{AGENDA}}\n\n## Discussion\n{{DISCUSSION}}\n\n## Decisions\n{{DECISIONS}}\n\n## Action Items\n- [ ] {{ACTION_1}} - {{ASSIGNEE_1}}\n- [ ] {{ACTION_2}} - {{ASSIGNEE_2}}\n\n## Next Steps\n{{NEXT_STEPS}}"
   }
 }
 ```
 
-#### 3. Note Collections (`notes://collections/`)
-Organized collections of notes grouped by folders and tags.
+### `notes://collections/`
+**Type**: Dictionary  
+**MIME Type**: `application/json`  
+**Description**: Notes organized by folders and tags
 
-**Resource URI:** `notes://collections/`  
-**MIME Type:** `application/json`  
-**Description:** Grouped collections of notes by tags and folders
-
-**Example Response:**
+**Schema**:
 ```json
 {
   "folders": {
-    "projects": ["projects/sibyl.md", "projects/other.md"],
-    "meetings": ["meetings/2025-01-15.md"],
-    "root": ["daily.md", "inbox.md"]
+    "folder_name": ["file_path"]  // Files grouped by directory
   },
   "tags": {
-    "development": ["projects/sibyl.md", "daily.md"],
-    "meeting": ["meetings/2025-01-15.md"],
-    "important": ["inbox.md"]
+    "tag_name": ["file_path"]     // Files grouped by YAML tags
   }
 }
 ```
 
-## Using Resources in MCP Clients
+## Resource Usage Patterns
 
-### Discovery
-Resources enable LLMs to discover available content without knowing specific file paths:
+### Discovery Pattern
+```javascript
+// LLM explores available content
+const docs = await mcp.readResource('pdf://documents/');
+const notes = await mcp.readResource('notes://files/');
 
-```
-LLM: "What PDF documents are available?"
-→ Reads pdf://documents/ resource
-→ Gets list of all PDFs with metadata
-
-LLM: "Show me all notes tagged with 'project'"  
-→ Reads notes://collections/ resource
-→ Finds notes in tags.project array
-```
-
-### Navigation
-Resources provide structured navigation through content:
-
-```
-LLM: "What note templates can I use?"
-→ Reads notes://templates/ resource  
-→ Shows available templates with descriptions
-
-LLM: "What's the best way to convert this handwritten PDF?"
-→ Reads pdf://templates/ resource
-→ Suggests handwritten template with specialized prompt
+// Filter by metadata
+const recentDocs = docs.filter(d => 
+  new Date(d.modified) > new Date('2025-01-01')
+);
 ```
 
-### Metadata-Rich Exploration
-Resources include rich metadata for intelligent decision making:
+### Navigation Pattern  
+```javascript
+// Browse organized collections
+const collections = await mcp.readResource('notes://collections/');
 
-- **File sizes** - Help determine processing approach
-- **Modification dates** - Find recent or outdated content  
-- **Tags and folders** - Understand content organization
-- **Previews** - Quick content assessment without full reads
-- **URIs** - Direct links to specific resources
+// Find all project-related notes
+const projectNotes = collections.tags.project || [];
+const projectFolderNotes = collections.folders.projects || [];
+```
 
-## Benefits Over Tool-Only Approach
+### Template Selection Pattern
+```javascript
+// Get available templates
+const templates = await mcp.readResource('notes://templates/');
 
-1. **Discoverability** - LLMs can explore available content
-2. **Efficiency** - Batch metadata retrieval vs individual tool calls
-3. **Context** - Rich metadata helps LLMs make better decisions
-4. **Navigation** - Structured browsing of content hierarchies
-5. **Real-time** - Resources reflect current state of files
+// Select appropriate template
+const meetingTemplate = templates.meeting;
+const variables = {
+  TITLE: "Sprint Planning",
+  DATE: "2025-08-10", 
+  ATTENDEES: "Team Alpha"
+};
+```
 
-## Configuration
+## HTTP Response Codes
 
-Resources are automatically enabled when you start the MCP servers. No additional configuration is required beyond the standard server setup.
+| Code | Meaning | Action |
+|------|---------|--------|
+| 200 | Success | Resource data returned |
+| 404 | Not Found | Resource URI invalid |
+| 403 | Forbidden | Access denied (credentials) |
+| 500 | Server Error | Check server logs |
 
-The resources will reflect the current state of your:
-- Google Drive folder (for PDF server)
-- Notes vault directory (for Notes server)
+## Error Responses
+
+```json
+{
+  "error": {
+    "code": "RESOURCE_NOT_FOUND",
+    "message": "Resource 'pdf://invalid/' not found",
+    "details": "Check available resource URIs"
+  }
+}
+```
+
+## Performance Notes
+
+- **Caching**: Resources are cached for 60 seconds
+- **Pagination**: Large collections (>1000 items) are paginated
+- **Lazy Loading**: Preview content is truncated to 200 characters
+- **Filtering**: Client-side filtering recommended for performance
+
+## Integration Examples
+
+### Claude Desktop
+Resources appear automatically in the MCP resource panel.
+
+### Custom Clients
+```python
+import mcp_client
+
+client = mcp_client.connect('stdio', ['./bin/pdf-server'])
+documents = client.read_resource('pdf://documents/')
+```
+
+### REST API Wrapper
+```bash
+curl -X POST http://localhost:8080/mcp \
+  -d '{"method": "resources/read", "params": {"uri": "pdf://documents/"}}'
+```

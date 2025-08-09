@@ -51,11 +51,11 @@ Sibyl is a dual MCP (Model Context Protocol) server application providing PDF pr
 
 ### Core Directories
 - `cmd/` - Main applications
-  - `cmd/pdf-server/` - PDF processing MCP server entry point
-  - `cmd/note_server/` - Notes management MCP server entry point
+  - `cmd/pdfserver/` - PDF processing MCP server entry point
+  - `cmd/noteserver/` - Notes management MCP server entry point
 - `pkg/` - Reusable packages
   - `pkg/dto/` - Data transfer objects (note.go, gcp.go)
-  - `pkg/pdf-mcp/` - PDF processing MCP server implementation with OCR support
+  - `pkg/pdfmcp/` - PDF processing MCP server implementation with OCR support
   - `pkg/notes/` - Notes management MCP server implementation
   - `pkg/utils/` - Shared utilities
 - `tests/` - Testing infrastructure
@@ -64,12 +64,12 @@ Sibyl is a dual MCP (Model Context Protocol) server application providing PDF pr
 - `examples/` - Configuration examples and documentation
 
 ### Key Implementation Files
-- `pkg/pdf-mcp/server.go` - PDF MCP server implementation
+- `pkg/pdfmcp/server.go` - PDF MCP server implementation
 - `pkg/notes/server.go` - Notes MCP server implementation  
 - `pkg/notes/merge.go` - Note merging strategies (5 different approaches)
 - `pkg/notes/templates.go` - Note template system
-- `pkg/pdf-mcp/ocr.go` - OCR integration (Mathpix, mock engines)
-- `pkg/pdf-mcp/conversion.go` - PDF to image conversion using MuPDF
+- `pkg/pdfmcp/ocr.go` - OCR integration (Mathpix, mock engines)
+- `pkg/pdfmcp/conversion.go` - PDF to image conversion using MuPDF
 
 ## MCP Server Configuration
 

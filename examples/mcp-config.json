@@ -5,14 +5,24 @@
       "args": [
         "--credentials", "/path/to/google-credentials.json",
         "--folder-id", "your-google-drive-folder-id",
+        "--mathpix-app-id", "your-mathpix-app-id",
+        "--mathpix-app-key", "your-mathpix-app-key",
+        "--ocr-languages", "en,fr,de",
         "--log-level", "INFO"
-      ]
+      ],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "/path/to/google-credentials.json",
+        "GCP_FOLDER_ID": "your-google-drive-folder-id",
+        "MATHPIX_APP_ID": "your-mathpix-app-id",
+        "MATHPIX_APP_KEY": "your-mathpix-app-key"
+      }
     },
     "notes-server": {
       "command": "./bin/notes-server", 
       "args": [
         "--notesFolder", "/path/to/your/notes",
-        "--logLevel", "INFO"
+        "--logLevel", "INFO",
+        "--logFile", "notes-server.log"
       ]
     }
   }
